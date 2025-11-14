@@ -16,10 +16,10 @@
 using namespace std;
 
 // Constructor for the MutualDipole class
-MutualDipole::MutualDipole(	std::shared_ptr<SystemDefinition> sysdef, // system this method will act on; must not be NULL
+MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system this method will act on; must not be NULL
 				std::shared_ptr<ParticleGroup> group, // group of particles in which to compute the force
 			  	std::shared_ptr<NeighborList> nlist, // neighbor list
-				std::shared_ptr<int> &group_tag,
+				std::vector<int> &group_tag, 
 				std::vector<float> &conductivity, // particle conductivities
 			  	std::vector<float> &field, // imposed external field
 				std::vector<float> &gradient, // imposed external field gradient
