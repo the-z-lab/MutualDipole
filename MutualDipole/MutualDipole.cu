@@ -79,15 +79,15 @@ __global__ void initialize_grid(CUFFTCOMPLEX *grid, // pointer to the grid array
 }
 
 // Initialize the active group membership/index list
-__global__ void initialize_groupmembership( int *d_group_membership, // pointer to active group membership list
+__global__ void initialize_groupmembership_tag( int *d_group_membership_tag, // pointer to active group membership list
 				      	    unsigned int Ntotal) // total number of particles
 {
 	// Global particle index
-	unsigned int idx = threadIdx.x + blockIdx.x*blockDim.x;
+	unsigned int tag = threadIdx.x + blockIdx.x*blockDim.x;
 
 	// Flag every particle as not a member of the active group
-	if (idx < Ntotal) {
-		d_group_membership[idx] = -1;
+	if (tag < Ntotal) {
+		d_group_membership_tag[tag] = -1;
 	}
 }
 
@@ -95,9 +95,10 @@ __global__ void initialize_groupmembership( int *d_group_membership, // pointer 
 // A particle with global index i that is not a member of the group has d_group_membership[i] = -1.
 // A particle with global index i that is a member of the group has its group-specific index in d_group_membership[i].
 // That is, d_group_members[d_group_membership[i]] = i.
-__global__ void groupmembership( int *d_group_membership, // pointer to active group membership list
+__global__ void groupmembership_tag( int *d_group_membership_tag, // pointer to active group membership list
 				 unsigned int *d_group_members, // pointer to indices of active group members
-				 unsigned int group_size) // number of particles in the active group
+				 unsigned int group_size, // number of particles in the active group
+				 unsigned int *d_tag)
 {
 	// Group-specific particle index
 	unsigned int group_idx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -105,10 +106,11 @@ __global__ void groupmembership( int *d_group_membership, // pointer to active g
 	if (group_idx < group_size) {
 		
 		// Global particle index
-		unsigned int idx = d_group_members[group_idx];
+		unsigned int idx = d_group_members[group_idx]; // HOOMD index
+		unsigned int tag = d_tag[idx]; // Global tag
 
 		// Set the group-specific index at the current particle's global index position in the group membership list
-		d_group_membership[idx] = group_idx;
+		d_group_membership_tag[tag] = group_idx; // Map tag -> group_idx
 	}
 
 }
@@ -118,6 +120,8 @@ __global__ void spread( Scalar4 *d_pos, // pointer to particle positions
 			Scalar3 *d_dipole, // pointer to particle dipole moments
 			int group_size, // number of particles belonging to the active group
 			unsigned int *d_group_members, // pointer to particle indices belonging to the group
+			unsigned int *d_tag, 
+			int *d_group_tag, // An input from python side, no calculation needed
 			BoxDim box, // simulation box
 			Scalar3 eta, // spectral splitting parameter
 			int Nx, // number of grid nodes in x dimension 
@@ -141,6 +145,8 @@ __global__ void spread( Scalar4 *d_pos, // pointer to particle positions
 
 	// Global ID of current particle
 	unsigned int idx = d_group_members[group_idx];
+	unsigned int tag = d_tag[idx];
+	int group_tag = d_group_tag[tag];
 
 	// Have the first thread fetch the particle position and store it in shared memory
 	if (thread_offset == 0) {
@@ -156,7 +162,7 @@ __global__ void spread( Scalar4 *d_pos, // pointer to particle positions
 	Scalar3 halfL = L/2.0;
 
 	// Current particle's dipole
-	Scalar3 Sj = d_dipole[group_idx];
+	Scalar3 Sj = d_dipole[group_tag];
 
 	// Wait for the particle position to be written to shared memory before proceeding
 	__syncthreads();
@@ -245,6 +251,8 @@ __global__ void contractfield(	Scalar4 *d_pos,  // pointer to particle positions
 				Scalar3 *d_extfield, // pointer to external field at particle centers
 				int group_size, // number of particles in the active group
 				unsigned int *d_group_members, // pointer to indices of particles belonging to the activer group
+				unsigned int *d_tag, 
+				int *d_group_tag, 
 				BoxDim box, // simulation box
 				Scalar xi, //  Ewald splitting parameter
 				Scalar3 eta, // spectral splitting parameter
@@ -270,7 +278,9 @@ __global__ void contractfield(	Scalar4 *d_pos,  // pointer to particle positions
 	int block_size = blockDim.x*blockDim.y*blockDim.z;
 
 	// Global particle ID
-    	unsigned int idx = d_group_members[group_idx];
+    unsigned int idx = d_group_members[group_idx];
+	unsigned int tag = d_tag[idx];
+	int group_tag = d_group_tag[tag];
 
 	// Initialize the shared memory for the field and have the first thread fetch the particle position and store it in shared memory
 	field[thread_offset] = make_scalar3(0.0,0.0,0.0);
@@ -342,7 +352,7 @@ __global__ void contractfield(	Scalar4 *d_pos,  // pointer to particle positions
 
 	// Have a single thread store the current particle's field
 	if (thread_offset == 0){
-		d_extfield[group_idx] = field[0];
+		d_extfield[group_tag] = field[0];
 	}
 }
 
@@ -352,6 +362,8 @@ __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 				Scalar4 *d_force, // pointer to particle forces
 				int group_size, // number of particles in the active group
 				unsigned int *d_group_members, // pointer to indices of particles belonging to the active group
+				unsigned int *d_tag, 
+				int *d_group_tag, 
 				BoxDim box, // simulation box
 				Scalar3 eta, // spectral splitting parameter
 				int Nx, // number of grid nodes in x dimension
@@ -376,7 +388,9 @@ __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 	int block_size = blockDim.x*blockDim.y*blockDim.z;
 
 	// Global particle ID
-    	unsigned int idx = d_group_members[group_idx];
+    unsigned int idx = d_group_members[group_idx];
+	unsigned int tag = d_tag[idx];
+	int group_tag = d_group_tag[tag];
 
 	// Initialize the shared memory for the force and have the first thread fetch the particle position and store it in shared memory
 	force[thread_offset] = make_scalar3(0.0,0.0,0.0);
@@ -388,7 +402,7 @@ __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 	}
 	
 	// Current particle's dipole
-	Scalar3 Si = d_dipole[group_idx];
+	Scalar3 Si = d_dipole[group_tag];
 
 	// Box size
 	Scalar3 L = box.getL();
@@ -462,8 +476,10 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					Scalar3 *d_dipole, // pointer to particle dipoles
 					Scalar3 *d_extfield, // pointer to particle external field
 					int group_size, // number of particles in the active group
-					int *d_group_membership, // particle membership and index in active group
+					int *d_group_membership_tag, // particle membership and index in active group
 					unsigned int *d_group_members, // pointer to indices of particles in the active group
+					unsigned int *d_tag, 
+					int *d_group_tag,
 					BoxDim box, // simulation box
 					Scalar rc, // real space cutoff radius
 					int Ntable, // number of entries in the real space table
@@ -482,13 +498,15 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 
 		// Global ID of current particle
 		unsigned int idx = d_group_members[group_idx];
+		unsigned int tag = d_tag[idx];
+		int group_tag = d_group_tag[tag];
 
 		// Get the wave space contribution to the field
-  		Scalar3 E = d_extfield[group_idx];
+  		Scalar3 E = d_extfield[group_tag];
 
 		// Dipole moment and conductivity of current particle
-		Scalar3 Si = d_dipole[group_idx];
-		Scalar lambda_p = d_conductivity[group_idx];
+		Scalar3 Si = d_dipole[group_tag];
+		Scalar lambda_p = d_conductivity[group_tag];
 		
 		// Add real space self term
 		E += selfcoeff*Si;
@@ -516,7 +534,9 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 			
 			// Get neighbor global and group index
 			unsigned int neigh_idx = d_nlist[head_i + j];
-			int neigh_group_idx = d_group_membership[neigh_idx];
+			unsigned int neigh_tag = d_tag[neigh_idx];
+			int neigh_group_idx = d_group_membership_tag[neigh_tag];
+			int neigh_group_tag = d_group_tag[neigh_tag];
 
 			// Check if neighbor is a member of the active group
 			if ( neigh_group_idx != -1 ) {
@@ -537,7 +557,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					r = r/dist; // convert r to a unit vector
 
 					// Dipole of neighbor particle
-					Scalar3 Sj = d_dipole[neigh_group_idx];
+					Scalar3 Sj = d_dipole[neigh_group_tag];
 
 					// Dot product of neighbor dipole and r
 					Scalar Sjdotr = Sj.x*r.x + Sj.y*r.y + Sj.z*r.z;
@@ -559,7 +579,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		}// end neighbor loop
 
 		// Write the result to the current particle's field
-		d_extfield[group_idx] = E;
+		d_extfield[group_tag] = E;
 
 	}
 }
@@ -571,8 +591,10 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 					Scalar3 gradient, // external field gradient
 					Scalar4 *d_force, // pointer to particle forces
 					int group_size, // number of particles in active group
-					int *d_group_membership, // pointer to particle membership and index in active group
+					int *d_group_membership_tag, // pointer to particle membership and index in active group
 					unsigned int *d_group_members, // pointer to indices of particles in the active group
+					unsigned int *d_tag, 
+					int *d_group_tag, 
 					BoxDim box, // simulation box
 					Scalar rc, // real space cutoff radius
 					int Ntable, // number of entries in the real space table
@@ -590,13 +612,15 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 
 		// Global ID of current particle
 		unsigned int idx = d_group_members[group_idx];
+		unsigned int tag = d_tag[idx];
+		int group_tag = d_group_tag[tag];
 
 		// Get the wave spcae contribution to the force
   		Scalar4 F4 = d_force[idx];
 		Scalar3 F = make_scalar3(F4.x, F4.y, F4.z);
 
 		// Dipole moment of current particle
-		Scalar3 Si = d_dipole[group_idx];
+		Scalar3 Si = d_dipole[group_tag];
 
 		// Add the phoretic force
 		Scalar field_mag = sqrtf(field.x*field.x + field.y*field.y + field.z*field.z); // field magnitude
@@ -621,7 +645,9 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 
 			// Get neighbor global and group index
 			unsigned int neigh_idx = d_nlist[head_i + j];
-			int neigh_group_idx = d_group_membership[neigh_idx];
+			unsigned int neigh_tag = d_tag[neigh_idx];
+			int neigh_group_idx = d_group_membership_tag[neigh_tag];
+			int neigh_group_tag = d_group_tag[neigh_tag];
 
 			// Check if neighbor is a member of the active group
 			if ( neigh_group_idx != -1 ) {
@@ -642,7 +668,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 					r = r/dist; // convert r to a unit vector
 
 					// Dipole of neighbor particle
-					Scalar3 Sj = d_dipole[neigh_group_idx];
+					Scalar3 Sj = d_dipole[neigh_group_tag];
 
 					// Dot products involving the two dipoles
 					Scalar SidotSj = Si.x*Sj.x + Si.y*Sj.y + Si.z*Sj.z;
@@ -677,8 +703,10 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
 				unsigned int group_size, // number of particles in active
-				int *d_group_membership, // pointer to particle membership and index in active group 
+				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
+				unsigned int *d_tag, 
+				int *d_group_tag, 
 				const BoxDim& box, // simulation box
 				unsigned int block_size, // number of threads to use per block
 				Scalar xi, // Ewald splitting parameter
@@ -730,7 +758,7 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
     initialize_grid<<<Nblocks1, Nthreads1>>>(d_gridZ,Ngrid);
 
 	// Spread dipoles from the particles to the grid
-	spread<<<Nblocks2, Nthreads2>>>(d_pos, d_dipole, group_size, d_group_members, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, prefac);
+	spread<<<Nblocks2, Nthreads2>>>(d_pos, d_dipole, group_size, d_group_members, d_tag, d_group_tag, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, prefac);
 
 	// Compute the Fourier transform of the gridded data
     cufftExecC2C(plan, d_gridX, d_gridX, CUFFT_FORWARD);
@@ -746,10 +774,10 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
     cufftExecC2C(plan, d_gridZ, d_gridZ, CUFFT_INVERSE);
 
 	// Contract the gridded values to the particles to get the wave space contribution to the field
-	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
+	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, d_tag, d_group_tag, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
 
 	// Compute the real space contribution to the field
-    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership, d_group_members, box, rc, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh, selfterm); 
+    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh, selfterm); 
 
     gpuErrchk(cudaPeekAtLastError());
     return cudaSuccess;
@@ -761,8 +789,10 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
 				unsigned int group_size, // number of particles in active
-				int *d_group_membership, // pointer to particle membership and index in active group 
+				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
+				unsigned int *d_tag, 
+				int *d_group_tag, 
 				const BoxDim& box, // simulation box
 				unsigned int block_size, // number of threads to use per block
 				Scalar xi, // Ewald splitting parameter
@@ -787,7 +817,7 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
 {
 	// Create the matrix-free potential linear operator
-	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership, d_group_members, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
 
 	// Allocate storage for the solution vector (S) and output of the matrix/vector multiply (E0) on the GPU
 	cusp::array1d<float, cusp::device_memory> S(M.num_rows, 0);
@@ -823,8 +853,10 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 				Scalar4 *d_force, // pointer to particle forces
 				unsigned int Ntotal, // total number of particles
 				unsigned int group_size, // number of particles in active group
-				int *d_group_membership, // pointer to particle membership and index in active group 
+				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
+				int *d_group_tag, 
+				unsigned int *d_tag, 
 				const BoxDim& box, // simulation box
 				unsigned int block_size, // number of threads to use per block
 				Scalar xi, // Ewald splitting parameter
@@ -888,12 +920,12 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
     cudaBindTexture(0, pos_tex, d_pos, sizeof(Scalar4) * Ntotal);
 
 	// Update the group membership list
-	initialize_groupmembership<<<Nblocks4, Nthreads4>>>(d_group_membership, Ntotal); // one thread per total particle
-	groupmembership<<<Nblocks3, Nthreads3>>>(d_group_membership, d_group_members, group_size); // one thread per active particle
+	initialize_groupmembership_tag<<<Nblocks4, Nthreads4>>>(d_group_membership_tag, Ntotal); // one thread per total particle
+	groupmembership_tag<<<Nblocks3, Nthreads3>>>(d_group_membership_tag, d_group_members, group_size, d_tag); // one thread per active particle
 
 	// Compute the particle dipoles.  If constantdipoleflag = 1, this step is skipped and the particles keep their constant dipole model values that were precomputed on the host.
 	if (constantdipoleflag != 1) {
-		ComputeDipole( d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership, d_group_members, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+		ComputeDipole( d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
 	}
 
     // Reset the grid values to zero
@@ -902,7 +934,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
     initialize_grid<<<Nblocks1, Nthreads1>>>(d_gridZ,Ngrid);
 
 	// Spread dipoles from the particles to the grid
-	spread<<<Nblocks2, Nthreads2>>>(d_pos, d_dipole, group_size, d_group_members, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, prefac);
+	spread<<<Nblocks2, Nthreads2>>>(d_pos, d_dipole, group_size, d_group_members, d_tag, d_group_tag, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, prefac);
 
 	// Compute the Fourier transform of the gridded data
     cufftExecC2C(plan, d_gridX, d_gridX, CUFFT_FORWARD);
@@ -918,10 +950,10 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
     cufftExecC2C(plan, d_gridZ, d_gridZ, CUFFT_INVERSE);
 
 	// Contract the gridded values to the particles to get the wave space contribution to the force
-	contractforce<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_force, group_size, d_group_members, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);   
+	contractforce<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_force, group_size, d_group_members, d_tag, d_group_tag, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);   
 
 	// Compute the real space contribution to the force
-    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_dipole, field, gradient, d_force, group_size,  d_group_membership, d_group_members, box, rc, Ntable, drtable, d_forcetable, d_nlist, d_head_list, d_n_neigh);
+    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_dipole, field, gradient, d_force, group_size,  d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_forcetable, d_nlist, d_head_list, d_n_neigh);
 
 	// Unbind the textured memory
 	cudaUnbindTexture(fieldtable_tex);

@@ -27,7 +27,7 @@ import math
 class MutualDipole(hoomd.md.force._force):
 
     # Initialize the MutualDipole class
-    def __init__(self, group, conductivity, field, gradient=[0., 0., 0.], xi = 0.5, errortol = 1e-3,
+    def __init__(self, group, group_tag, conductivity, field, gradient=[0., 0., 0.], xi = 0.5, errortol = 1e-3,
                  fileprefix = "", period = 0, constantdipoleflag = 0):
 
         hoomd.util.print_status_line();
@@ -57,7 +57,7 @@ class MutualDipole(hoomd.md.force._force):
 
             # Add the new force to the system
             self.cpp_force = _MutualDipole.MutualDipole(hoomd.context.current.system_definition, group.cpp_group,
-                                                        self.neighbor_list, conductivity, field, gradient, xi, errortol, fileprefix,
+                                                        self.neighbor_list, group_tag, conductivity, field, gradient, xi, errortol, fileprefix,
                                                         period, constantdipoleflag, hoomd.context.current.system.getCurrentTimeStep());
             hoomd.context.current.system.addCompute(self.cpp_force,self.force_name);
 
@@ -79,7 +79,7 @@ class MutualDipole(hoomd.md.force._force):
 
     # Update simulation parameters.  This is needed if any of the simulation
     # parameters change, including the volume fraction or shape of the simulation box.
-    def update_parameters(self, conductivity, field, gradient = [0., 0., 0.], fileprefix = "", period = 0, constantdipoleflag = 0):
-        self.cpp_force.UpdateParameters(field, conductivity, fileprefix, period, constantdipoleflag,
+    def update_parameters(self, group_tag, conductivity, field, gradient = [0., 0., 0.], fileprefix = "", period = 0, constantdipoleflag = 0):
+        self.cpp_force.UpdateParameters(group_tag, field, conductivity, fileprefix, period, constantdipoleflag,
                                         hoomd.context.current.system.getCurrentTimeStep());
         self.cpp_force.SetParams();

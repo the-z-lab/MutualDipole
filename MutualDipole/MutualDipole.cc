@@ -19,6 +19,7 @@ using namespace std;
 MutualDipole::MutualDipole(	std::shared_ptr<SystemDefinition> sysdef, // system this method will act on; must not be NULL
 				std::shared_ptr<ParticleGroup> group, // group of particles in which to compute the force
 			  	std::shared_ptr<NeighborList> nlist, // neighbor list
+				std::shared_ptr<int> &group_tag,
 				std::vector<float> &conductivity, // particle conductivities
 			  	std::vector<float> &field, // imposed external field
 				std::vector<float> &gradient, // imposed external field gradient
@@ -54,6 +55,14 @@ MutualDipole::MutualDipole(	std::shared_ptr<SystemDefinition> sysdef, // system 
 	// Get the group size and total number of particles
 	m_group_size = m_group->getNumMembers();
 	m_Ntotal = m_pdata->getN();
+
+	// group_tag
+	GPUArray<int> n_group_tag(m_Ntotal, m_exec_conf);
+	m_group_tag.swap(n_group_tag);
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::readwrite);
+	for (unsigned int i = 0; i < m_Ntotal; ++i ){
+		h_group_tag.data[i] = group_tag[i];
+	}
 	
 	// Extract the particle conductivities
 	GPUArray<Scalar> n_conductivity(m_group_size, m_exec_conf);
@@ -161,7 +170,7 @@ void MutualDipole::SetParams() {
 	// Print summary to command line output
 	printf("\n");
 	printf("\n");
-	m_exec_conf->msg->notice(2) << "--- Parameters ---" << std::endl;
+	m_exec_conf->msg->notice(2) << "--- ????? Parameters ---" << std::endl;
 	m_exec_conf->msg->notice(2) << "Active group size: " << m_group_size << std::endl;
 	m_exec_conf->msg->notice(2) << "Box dimensions: " << L.x << ", " << L.y << ", " << L.z << std::endl;
 	m_exec_conf->msg->notice(2) << "Ewald parameter xi: " << m_xi << std::endl;
@@ -355,8 +364,8 @@ void MutualDipole::SetParams() {
 	////// Initializations for needed arrays
 
 	// Group membership list
-	GPUArray<int> n_group_membership(m_Ntotal, m_exec_conf);
-	m_group_membership.swap(n_group_membership);
+	GPUArray<int> n_group_membership_tag(m_Ntotal, m_exec_conf);
+	m_group_membership_tag.swap(n_group_membership_tag);
 
 	// Particle dipoles
 	GPUArray<Scalar3> n_dipole(m_group_size, m_exec_conf);
@@ -370,6 +379,8 @@ void MutualDipole::SetParams() {
 
 	// Get access to particle conductivities
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::read);
+
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 
 	// Fill the external field and dipole arrays
 	for( unsigned int ii = 0; ii < m_group_size; ++ii){
@@ -426,12 +437,13 @@ void MutualDipole::UpdateField(std::vector<float> &field,
 }
 
 // Update simulation parameters.  Recomputes tables on the CPU.
-void MutualDipole::UpdateParameters(std::vector<float> &field,
-				     std::vector<float> &gradient,
+void MutualDipole::UpdateParameters(std::vector<int> &group_tag,
+						 std::vector<float> &field,
+				     	 std::vector<float> &gradient,
 		      		     std::vector<float> &conductivity,
 		      		     std::string fileprefix,
 		      		     int period,
-				     int constantdipoleflag,
+				     	 int constantdipoleflag,
 		      		     unsigned int t0) 
 {
 
@@ -444,6 +456,7 @@ void MutualDipole::UpdateParameters(std::vector<float> &field,
 	m_t0 = t0;
 
 	// Get access to particle external field, conductivity, and dipole arrays
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar3> h_extfield(m_extfield, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar3> h_dipole(m_dipole, access_location::host, access_mode::readwrite);
@@ -502,10 +515,16 @@ void MutualDipole::computeForces(unsigned int timestep) {
 	ArrayHandle<Scalar3> d_extfield(m_extfield, access_location::device, access_mode::readwrite);
 
 	// active group indices
-	ArrayHandle<int> d_group_membership(m_group_membership, access_location::device, access_mode::readwrite);
+	ArrayHandle<int> d_group_membership_tag(m_group_membership_tag, access_location::device, access_mode::readwrite);
+
+	// tag
+	ArrayHandle<unsigned int> d_tag(m_pdata->getTags(), access_location::device, access_mode::read);
 
 	// particles in the active group
 	ArrayHandle<unsigned int> d_group_members(m_group->getIndexArray(), access_location::device, access_mode::read);
+
+	// group_tag
+	ArrayHandle<int> d_group_tag(m_group_tag, access_location::device, access_mode::read);
 
 	// simulation box
 	BoxDim box = m_pdata->getBox();
@@ -547,8 +566,10 @@ void MutualDipole::computeForces(unsigned int timestep) {
 
 			m_Ntotal,
 			m_group_size,
-			d_group_membership.data,
+			d_group_membership_tag.data,
 			d_group_members.data,
+			d_group_tag.data, 
+			d_tag.data, 
 			box,
 
 			block_size,
@@ -605,10 +626,12 @@ void MutualDipole::OutputData(unsigned int timestep) {
 
 	// Access needed data
 	ArrayHandle<unsigned int> h_rtag(m_pdata->getRTags(), access_location::host, access_mode::read);
+	ArrayHandle<unsigned int> h_tag(m_pdata->getTags(), access_location::host, access_mode::read);
 	ArrayHandle<Scalar4> h_pos(m_pdata->getPositions(), access_location::host, access_mode::read);
 	ArrayHandle<Scalar3> h_dipole(m_dipole, access_location::host, access_mode::read);
 	ArrayHandle<Scalar4> h_force(m_force, access_location::host, access_mode::read);
-	ArrayHandle<int> h_group_membership(m_group_membership, access_location::host, access_mode::read);
+	ArrayHandle<int> h_group_membership_tag(m_group_membership_tag, access_location::host, access_mode::read);
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 
 	// Open the file
 	std::ofstream file;
@@ -622,7 +645,7 @@ void MutualDipole::OutputData(unsigned int timestep) {
 	////// Write the particle positions to file in global tag order
 
 	// Header
-	file << "Position" << std::endl;
+	file << "Position_x Position_y Position_z i idx" << std::endl;
 
 	// Loop through particle tags
 	for (int i = 0; i < m_Ntotal; i++) {
@@ -634,29 +657,37 @@ void MutualDipole::OutputData(unsigned int timestep) {
 		Scalar4 postype = h_pos.data[idx];
 
 		// Write the position to file
-		file << std::setprecision(10) << postype.x << "  " << postype.y << "  " << postype.z << "  " << std::endl;
+		file << std::setprecision(10) << postype.x << "  " << postype.y << "  " << postype.z << "  " << i << "  " << idx << "  " << std::endl;
 	}
 
 	////// Write the particle dipoles to file in global tag order
-	file << "Dipole" << std::endl;
+	file << "Dipole_x  Dipole_y  Dipole_z  i  group_tag" << std::endl;
 	for (int i = 0; i < m_Ntotal; i++) {
 
 		// Get the particle's global index
 		unsigned int idx = h_rtag.data[i];
 
 		// Get the particle's active group-specific index
-		int group_idx = h_group_membership.data[idx];
+		int group_idx = h_group_membership_tag.data[i];
+
+		if (idx >= m_Ntotal) continue;
+
+		// Get the particle's active group-specific index
+		int group_tag = h_group_tag.data[i];
+		printf("OutputData [Dipole]: i = %d, group_tag = h_group_tag.data[i] = %d \n", i, group_tag);
 
 		// Get the particle's dipole if it is in the active group.  Else, set the dipole to 0.
 		Scalar3 dipole;
 		if (group_idx != -1) {
-			dipole = h_dipole.data[group_idx];
+			dipole = h_dipole.data[group_tag];
 		} else {
 			dipole = make_scalar3(0.0, 0.0, 0.0);
 		}
 
 		// Write the dipole to file
-		file << std::setprecision(10) << dipole.x << "  " << dipole.y << "  " << dipole.z << "  " << std::endl;
+		file << std::setprecision(10)
+			<< dipole.x << "  " << dipole.y << "  " << dipole.z << "  "
+			<< i << "  " << group_tag << std::endl;
 	}
 
 	////// Write the particle electric/magnetic forces to file in global tag order

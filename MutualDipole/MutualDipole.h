@@ -25,9 +25,10 @@ class MutualDipole : public ForceCompute {
         MutualDipole(std::shared_ptr<SystemDefinition> sysdef,
                       std::shared_ptr<ParticleGroup> group,
 	              std::shared_ptr<NeighborList> nlist,
+				  std::vector<int> &group_tag,
+				  std::vector<float> &conductivity,
 		      std::vector<float> &field,
 		      std::vector<float> &gradient,
-		      std::vector<float> &conductivity,
 	              Scalar xi,
 		      Scalar errortol,
 		      std::string fileprefix,
@@ -46,7 +47,8 @@ class MutualDipole : public ForceCompute {
 			 std::vector<float> &gradient);
 
 	// Update simulation parameters
-	void UpdateParameters(std::vector<float> &field,
+	void UpdateParameters(std::vector<int> &group_tag, 
+				  std::vector<float> &field,
 			      std::vector<float> &gradient,
 			      std::vector<float> &conductivity,
 			      std::string fileprefix,
@@ -71,7 +73,8 @@ class MutualDipole : public ForceCompute {
 
 	int m_Ntotal;					// total number of particles
 	int m_group_size;				// number of particles in the active group
-	GPUArray<int> m_group_membership;		// active group membership list
+	GPUArray<int> m_group_membership_tag;		// active group membership list
+	GPUArray<int> m_group_tag;
 
 	Scalar m_xi;               			// Ewald splitting parameter
 	Scalar m_errortol;				// error tolerance

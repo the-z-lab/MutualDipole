@@ -26,8 +26,10 @@ public:
     Scalar *d_conductivity;  // pointer to particle conductivity
 
     unsigned int group_size;  // number of active particles
-    int *d_group_membership;  // pointer to particle membership and index in active group
+    int *d_group_membership_tag;  // pointer to particle membership and index in active group
     unsigned int *d_group_members;  // pointer to indices of particles in the active group
+    unsigned int *d_tag;
+    int *d_group_tag;
     const BoxDim& box;  // simulation box
 
     int block_size;  // number of threads to use per block
@@ -59,8 +61,10 @@ public:
     cuspPotential(Scalar4 *d_pos,
 		  Scalar *d_conductivity,
 		  unsigned int group_size,
-		  int *d_group_membership,
+		  int *d_group_membership_tag,
 		  unsigned int *d_group_members,
+          unsigned int *d_tag,
+          int *d_group_tag, 
 		  const BoxDim& box,
 		  int block_size,
 		  Scalar xi,
@@ -86,8 +90,10 @@ public:
 		  d_pos(d_pos),
 		  d_conductivity(d_conductivity),
           group_size(group_size),
-		  d_group_membership(d_group_membership),
+		  d_group_membership_tag(d_group_membership_tag),
 		  d_group_members(d_group_members),
+          d_tag(d_tag),
+          d_group_tag(d_group_tag),
 		  box(box),
 		  block_size(block_size),
 		  xi(xi),
@@ -125,7 +131,7 @@ public:
 	    Scalar3 *E0_ptr2 = (Scalar3 *) &E0_ptr[0];
 
         // Compute E0 = M*S
-	    ComputeField( d_pos, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership, d_group_members, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+	    ComputeField( d_pos, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
 
     }
 };

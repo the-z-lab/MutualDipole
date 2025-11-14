@@ -26,8 +26,10 @@ cudaError_t gpu_ComputeForce(Scalar4 *d_pos, // pointer to particle positions
 			     Scalar4 *d_force, // pointer to the particle forces
 			     unsigned int Ntotal, // total number of particles
                  unsigned int group_size, // number of particles in active group
-			     int *d_group_membership, // pointer to particle membership and index in active group
+			     int *d_group_membership_tag, // pointer to particle membership and index in active group
                  unsigned int *d_group_members, // pointer to indices of particles in active group
+				 int *d_group_tag, 
+				 unsigned int *d_tag, 
                  const BoxDim& box, // simulation box
                  unsigned int block_size, // number of threads per block
 			     Scalar xi, // Ewald splitting parameter
@@ -59,8 +61,10 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle posisitons
 			 Scalar3 *d_dipole, // pointer to particle dipoles
 			 Scalar3 *d_extfield, // pointer to external field at particle centers
 			 unsigned int group_size, // number of particles in active
-			 int *d_group_membership, // pointer to particle membership and index in active group 
+			 int *d_group_membership_tag, // pointer to particle membership and index in active group 
 			 unsigned int *d_group_members, // pointer to indices of particles in active group
+			 unsigned int *d_tag, 
+			 int *d_group_tag,
 			 const BoxDim& box, // simulation box
 			 unsigned int block_size, // number of threads to use per block
 			 Scalar xi, // Ewald splitting parameter
