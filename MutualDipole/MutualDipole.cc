@@ -712,7 +712,7 @@ void MutualDipole::OutputData(unsigned int timestep) {
 void export_MutualDipole(pybind11::module& m)
 {
     pybind11::class_<MutualDipole, std::shared_ptr<MutualDipole>> (m, "MutualDipole", pybind11::base<ForceCompute>())
-		.def(pybind11::init< std::shared_ptr<SystemDefinition>, std::shared_ptr<ParticleGroup>, std::shared_ptr<NeighborList>, std::vector<float>&, std::vector<float>&, std::vector<float>&, Scalar, Scalar, std::string, int, int, unsigned int >())
+		.def(pybind11::init< std::shared_ptr<SystemDefinition>, std::shared_ptr<ParticleGroup>, std::shared_ptr<NeighborList>, std::vector<int>&, std::vector<float>&, std::vector<float>&, std::vector<float>&, Scalar, Scalar, std::string, int, int, unsigned int >())
 		.def("SetParams", &MutualDipole::SetParams)
 		.def("UpdateField", &MutualDipole::UpdateField)
 		.def("UpdateParameters", &MutualDipole::UpdateParameters)
