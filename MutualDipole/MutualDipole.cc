@@ -260,6 +260,8 @@ void MutualDipole::SetParams() {
 	double xi6 = pow(m_xi,6);
 
 	// Fill the real space tables
+	// Need to add a doule loop for a_i and a_j
+	// User need to provide radii and the types
 	for (int i = 0; i <= m_Ntable; i++)
 	{
 		// Particle separation corresponding to current table entry
@@ -270,7 +272,7 @@ void MutualDipole::SetParams() {
 		double dist5 = pow(dist,5);
 		double dist6 = pow(dist,6);
 
-		// Exponentials and complimentary error functions
+		// Exponentials and complimentary error functions (Need to update this)
 		double expp = exp(-(dist+2)*(dist+2)*xi2);		
 		double expm = exp(-(dist-2)*(dist-2)*xi2);
 		double exp0 = exp(-dist2*xi2);
@@ -278,52 +280,119 @@ void MutualDipole::SetParams() {
 		double erfm = erfc((dist-2)*xi);
 		double erf0 = erfc(dist*xi);
 
-		// Field table; I-rr component
-		double exppolyp = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 8.0*xi2*(2.0-7.0*xi2)*dist3 - 8.0*xi2*(3.0+2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
-		double exppolym = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 8.0*xi2*(2.0-7.0*xi2)*dist3 + 8.0*xi2*(3.0+2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
-		double exppoly0 = 1.0/(512.0*pow(PI,1.5)*xi5*dist2)*(-4.0*xi4*dist4 - 8.0*xi2*(2.0-9.0*xi2)*dist2 - 3.0+36.0*xi2);
-		double erfpolyp = 1.0/(2048.0*PI*xi6*dist3)*(-8.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 + 256.0*xi6*dist3 - 18.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
-		double erfpolym = 1.0/(2048.0*PI*xi6*dist3)*(-8.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 - 256.0*xi6*dist3 - 18.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
-		double erfpoly0 = 1.0/(1024.0*PI*xi6*dist3)*(8.0*xi6*dist6 + 36.0*xi4*(1.0-4.0*xi2)*dist4 + 18.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2);
+		// // Field table; I-rr component
+		// double exppolyp = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 8.0*xi2*(2.0-7.0*xi2)*dist3 - 8.0*xi2*(3.0+2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// double exppolym = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 8.0*xi2*(2.0-7.0*xi2)*dist3 + 8.0*xi2*(3.0+2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// double exppoly0 = 1.0/(512.0*pow(PI,1.5)*xi5*dist2)*(-4.0*xi4*dist4 - 8.0*xi2*(2.0-9.0*xi2)*dist2 - 3.0+36.0*xi2);
+		// double erfpolyp = 1.0/(2048.0*PI*xi6*dist3)*(-8.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 + 256.0*xi6*dist3 - 18.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
+		// double erfpolym = 1.0/(2048.0*PI*xi6*dist3)*(-8.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 - 256.0*xi6*dist3 - 18.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
+		// double erfpoly0 = 1.0/(1024.0*PI*xi6*dist3)*(8.0*xi6*dist6 + 36.0*xi4*(1.0-4.0*xi2)*dist4 + 18.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2);
+
+		// Field table; I-rr component (Two pair, ai, aj)
+		// Need to define ai, aj
+		double f_1 = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(4.0*xi4*dist5 - 4.0*(a_i+a_j)*xi4*dist4 + (16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4)*dist3 + (-12.0*(a_i+a_j)*xi2-8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4)*dist2 + (3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2-4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(a_i+a_j)+4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 + 4.0*(a_i+a_j)^3.0*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4);
+		double f_2 = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(4.0*xi4*dist5 + 4.0*(a_i+a_j)*xi4*dist4 + (16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4)*dist3 + (12.0*(a_i+a_j)*xi2+8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4)*dist2 + (3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2-4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4)*dist - 3.0*(a_i+a_j)-4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 - 4.0*(a_i+a_j)^3.0*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4);
+		double f_3 = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(-4.0*xi4*dist5 + 4.0*(-a_i+a_j)*xi4*dist4 + (-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4)*dist3 + (12.0*(-a_i+a_j)*xi2-8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4)*dist2 + (-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2+4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(a_i-a_j)+4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 + 4.0*(a_i-a_j)^3.0*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4);
+		double f_4 = 1.0/(1024.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(-4.0*xi4*dist5 + 4.0*(a_i-a_j)*xi4*dist4 + (-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4)*dist3 + (12.0*(a_i-a_j)*xi2+8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4)*dist2 + (-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2+4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(-a_i+a_j)-4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 - 4.0*(a_i-a_j)^3.0*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4);
+		double f_5 = 1.0/(2048.0*PI*xi6*dist3*a_i^3*a_j^3)*(-8.0*xi6*dist6 + 36.0*xi4*dist4*(-1+2*(a_i^2+a_j^2)*xi2) + 128.0*(a_i^3+a_j^3)*dist3*xi6 + dist2*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4+72.0*(a_i^2-a_j^2)^2*xi6)+3.0-18.0*(a_i^2+a_j^2)*xi2 - 36.0*(a_i^2-a_j^2)*xi4 - 8.0*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6);
+		double f_6 = 1.0/(2048.0*PI*xi6*dist3*a_i^3*a_j^3)*(-8.0*xi6*dist6 + 36.0*xi4*dist4*(-1+2*(a_i^2+a_j^2)*xi2) - 128.0*(a_i^3+a_j^3)*dist3*xi6 + dist2*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4+72.0*(a_i^2-a_j^2)^2*xi6)+3.0-18.0*(a_i^2+a_j^2)*xi2 - 36.0*(a_i^2-a_j^2)*xi4 - 8.0*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6);
+		double f_7 = 1.0/(2048.0*PI*xi6*dist3*a_i^3*a_j^3)*(8.0*xi6*dist6 + 36.0*xi4*dist4*(1-2*(a_i^2+a_j^2)*xi2) + 128.0*(a_i^3-a_j^3)*dist3*xi6 + dist2*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4-72.0*(a_i^2-a_j^2)^2*xi6)-3.0+18.0*(a_i^2+a_j^2)*xi2 + 36.0*(a_i^2-a_j^2)*xi4 + 8.0*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6);
+		double f_8 = 1.0/(2048.0*PI*xi6*dist3*a_i^3*a_j^3)*(8.0*xi6*dist6 + 36.0*xi4*dist4*(1-2*(a_i^2+a_j^2)*xi2) - 128.0*(a_i^3-a_j^3)*dist3*xi6 + dist2*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4-72.0*(a_i^2-a_j^2)^2*xi6)-3.0+18.0*(a_i^2+a_j^2)*xi2 + 36.0*(a_i^2-a_j^2)*xi4 + 8.0*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6);
+
+		// // Regularization for overlapping particles
+		// double regpoly;
+		// if (dist < 2) {
+		// 	regpoly =  -1.0/(4.0*PI*dist3) + 1.0/(4.0*PI)*(1.0 - 9.0*dist/16.0 + dist3/32.0);
+		// } else {
+		// 	regpoly = 0.0;
+		// }
 
 		// Regularization for overlapping particles
-		double regpoly;
-		if (dist < 2) {
-			regpoly =  -1.0/(4.0*PI*dist3) + 1.0/(4.0*PI)*(1.0 - 9.0*dist/16.0 + dist3/32.0);
-		} else {
-			regpoly = 0.0;
+		double regpoly = 0.0;
+
+		if (dist < a_i + a_j && dist >= fabs(a_i - a_j)) {
+
+			regpoly = (a_i+a_j-dist3) / (128.0*PI*a_i^3*a_j^3*dist3) * (-dist3-3*(a_i+a_j)*dist2 + 3*(a_i^2-4*a_i*a_j+a_j^2)*dist + a_i^3 - 3*a_i^2*a_j - 3*a_i*a_j^2 + a_j^3);
+
+		}
+		else if (dist < a_j - a_i && dist > a_i - a_j) {
+
+			regpoly = (dist3 - a_j^3) / (4.0 * PI * a_j^3 * dist3);
+
+		}
+		else if (dist < a_i - a_j && dist > a_j - a_i) {
+
+			regpoly = (dist3 - a_i^3) / (4.0 * PI * a_i^3 * dist3);
+
 		}
  
 		// I-rr term gets the .x field
 		h_fieldtable.data[i].x = Scalar(exppolyp*expp + exppolym*expm + exppoly0*exp0 + erfpolyp*erfp + erfpolym*erfm + erfpoly0*erf0 + regpoly);
 
+		// // Field table: rr component
+		// exppolyp = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 - 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 - 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppolym = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 + 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 + 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppoly0 = 1.0/(256.0*pow(PI,1.5)*xi5*dist2)*(-8.0*xi4*dist4 - 2.0*xi2*(7.0-36.0*xi2)*dist2 + 3.0-36.0*xi2);
+		// erfpolyp = 1.0/(1024.0*PI*xi6*dist3)*(-16.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 + 128.0*xi6*dist3 - 3.0+36.0*xi2-256.0*xi6);
+		// erfpolym = 1.0/(1024.0*PI*xi6*dist3)*(-16.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 - 128.0*xi6*dist3 - 3.0+36.0*xi2-256.0*xi6);
+		// erfpoly0 = 1.0/(512.0*PI*xi6*dist3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-4.0*xi2)*dist4 + 3.0-36.0*xi2);
+
 		// Field table: rr component
-		exppolyp = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 - 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 - 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppolym = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 + 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 + 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppoly0 = 1.0/(256.0*pow(PI,1.5)*xi5*dist2)*(-8.0*xi4*dist4 - 2.0*xi2*(7.0-36.0*xi2)*dist2 + 3.0-36.0*xi2);
-		erfpolyp = 1.0/(1024.0*PI*xi6*dist3)*(-16.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 + 128.0*xi6*dist3 - 3.0+36.0*xi2-256.0*xi6);
-		erfpolym = 1.0/(1024.0*PI*xi6*dist3)*(-16.0*xi6*dist6 - 36.0*xi4*(1.0-4.0*xi2)*dist4 - 128.0*xi6*dist3 - 3.0+36.0*xi2-256.0*xi6);
-		erfpoly0 = 1.0/(512.0*PI*xi6*dist3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-4.0*xi2)*dist4 + 3.0-36.0*xi2);
+		f_1 = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(8.0*xi4*dist5 - 8.0*xi4*dist4*(a_i+a_j) + (14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4)*dist3 + (-6.0*(a_i+a_j)*xi2-4.0*(a_i^3-3.0*a_i^2*a_j-3*a_i*a_j^2+a_j^3)*xi4)*dist2 + (-3.0+12.0(a_i^2-a_i*a_j+a_j^2)*xi2+4.0*(a_i+a_j)^2*(a_i^2-4*a_i*a_j+a_j^2)*xi4)*dist - 3.0*(a_i+a_j)-4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 - 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4);
+		f_2 = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(8.0*xi4*dist5 + 8.0*xi4*dist4*(a_i+a_j) + (14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4)*dist3 + (6.0*(a_i+a_j)*xi2+4.0*(a_i^3-3.0*a_i^2*a_j-3*a_i*a_j^2+a_j^3)*xi4)*dist2 + (-3.0+12.0(a_i^2-a_i*a_j+a_j^2)*xi2+4.0*(a_i+a_j)^2*(a_i^2-4*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(a_i+a_j)+4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 + 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4);
+		f_3 = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(-8.0*xi4*dist5 + 8.0*xi4*dist4*(-a_i+a_j) + (-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4)*dist3 + (6.0*(-a_i+a_j)*xi2-4.0*(a_i^3+3.0*a_i^2*a_j-3*a_i*a_j^2-a_j^3)*xi4)*dist2 + (3.0-12.0(a_i^2+a_i*a_j+a_j^2)*xi2-4.0*(a_i-a_j)^2*(a_i^2+4*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(-a_i+a_j)-4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 - 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4);
+		f_4 = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*a_i^3*a_j^3)*(-8.0*xi4*dist5 + 8.0*xi4*dist4*(a_i-a_j) + (-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4)*dist3 + (6.0*(a_i-a_j)*xi2+4.0*(a_i^3+3.0*a_i^2*a_j-3*a_i*a_j^2-a_j^3)*xi4)*dist2 + (3.0-12.0(a_i^2+a_i*a_j+a_j^2)*xi2+4.0*(a_i-a_j)^2*(a_i^2+4*a_i*a_j+a_j^2)*xi4)*dist + 3.0*(a_i-a_j)+4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 + 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4);
+		f_5 = 1.0/(1024.0*PI*xi6*dist3*a_i^3*a_j^3)*(-16.0*xi6*dist6 + 36.0*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2)*dist4 + 64.0*xi6*dist3*(a_i^3+a_j^3) - 3.0+18.0*xi2*(a_i^2+a_j^2) + 36.0*(a_i^2-a_j^2)^2*xi4 + 8*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6);
+		f_6 = 1.0/(1024.0*PI*xi6*dist3*a_i^3*a_j^3)*(-16.0*xi6*dist6 + 36.0*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2)*dist4 - 64.0*xi6*dist3*(a_i^3+a_j^3) - 3.0+18.0*xi2*(a_i^2+a_j^2) + 36.0*(a_i^2-a_j^2)^2*xi4 + 8*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6);
+		f_7 = 1.0/(1024.0*PI*xi6*dist3*a_i^3*a_j^3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2)*dist4 + 64.0*xi6*dist3*(a_i^3-a_j^3) + 3.0-18.0*xi2*(a_i^2+a_j^2) - 36.0*(a_i^2-a_j^2)^2*xi4 - 8*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6);
+		f_8 = 1.0/(1024.0*PI*xi6*dist3*a_i^3*a_j^3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2)*dist4 + 64.0*xi6*dist3*(-a_i^3+a_j^3) + 3.0-18.0*xi2*(a_i^2+a_j^2) - 36.0*(a_i^2-a_j^2)^2*xi4 - 8*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6);
 
 		// Regularization for overlapping particles
-		if (dist < 2) {
-			regpoly =  1.0/(2.0*PI*dist3) + 1.0/(4.0*PI)*(1.0 - 9.0*dist/8.0 + dist3/8.0);
-		} else {
-			regpoly = 0.0;
+		// if (dist < 2) {
+		// 	regpoly =  1.0/(2.0*PI*dist3) + 1.0/(4.0*PI)*(1.0 - 9.0*dist/8.0 + dist3/8.0);
+		// } else {
+		// 	regpoly = 0.0;
+		// }
+
+		// Regularization for overlapping particles (MATLAB version #2)
+		double regpoly = 0.0;
+
+		// Case 1: (r < ai+aj) & (r >= ai-aj) & (r >= aj-ai)  <=> r < ai+aj and r >= |ai-aj|
+		if (dist < a_i + a_j && dist >= fabs(ai - aj)) {
+			regpoly = -1.0 / (64.0*PI*a_i^3*a_j^3*dist3) * ((a_i+a_j)^4 * (a_i^2-4.0*a_i*a_j+a_j^2) - 8*(a_i^3+a_j^3)*dist3+9*(a_i^2+a_j^2)*dist4-2*dist6);
+		}
+		// Case 2: (r < aj-ai) & (r > ai-aj)
+		else if (dist < aj - ai && dist > ai - aj) {
+			regpoly = (dist3+2.0*a_j^3) / (4.0*PI*a_j^3*dist3);
+		}
+		// Case 3: (r < ai-aj) & (r > aj-ai)
+		else if (dist < ai - aj && dist > aj - ai) {
+			regpoly = (dist3+2.0*a_i^3) / (4.0*PI*a_i^3*dist3);
 		}
 
-		// rr term gets the .y field
+		// rr term gets the .y field (combine)
 		h_fieldtable.data[i].y = Scalar(exppolyp*expp + exppolym*expm + exppoly0*exp0 + erfpolyp*erfp + erfpolym*erfm + erfpoly0*erf0 + regpoly);
 
+		// // Force table; -( (Si*Sj)r + (Sj*r)Si + (Si*r)Sj - 2(Si*r)(Sj*r)r ) component 
+		// exppolyp = 3.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 4.0*xi2*(1.0-2.0*xi2)*dist3 + 16.0*xi4*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppolym = 3.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 4.0*xi2*(1.0-2.0*xi2)*dist3 - 16.0*xi4*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppoly0 = 3.0/(512.0*pow(PI,1.5)*xi5*dist3)*(-4.0*xi4*dist4 - 4.0*xi2*(1.0-6.0*xi2)*dist2 + 3.0-36.0*xi2);
+		// erfpolyp = 3.0/(2048.0*PI*xi6*dist4)*(-8.0*xi6*dist6 - 12.0*xi4*(1.0-4.0*xi2)*dist4 + 6.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2-256.0*xi6);
+		// erfpolym = erfpolyp;
+		// erfpoly0 = 3.0/(1024.0*PI*xi6*dist4)*(8.0*xi6*dist6 + 12.0*xi4*(1.0-4.0*xi2)*dist4 - 6.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2);
+
 		// Force table; -( (Si*Sj)r + (Sj*r)Si + (Si*r)Sj - 2(Si*r)(Sj*r)r ) component 
-		exppolyp = 3.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 4.0*xi2*(1.0-2.0*xi2)*dist3 + 16.0*xi4*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppolym = 3.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 4.0*xi2*(1.0-2.0*xi2)*dist3 - 16.0*xi4*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppoly0 = 3.0/(512.0*pow(PI,1.5)*xi5*dist3)*(-4.0*xi4*dist4 - 4.0*xi2*(1.0-6.0*xi2)*dist2 + 3.0-36.0*xi2);
-		erfpolyp = 3.0/(2048.0*PI*xi6*dist4)*(-8.0*xi6*dist6 - 12.0*xi4*(1.0-4.0*xi2)*dist4 + 6.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2-256.0*xi6);
-		erfpolym = erfpolyp;
-		erfpoly0 = 3.0/(1024.0*PI*xi6*dist4)*(8.0*xi6*dist6 + 12.0*xi4*(1.0-4.0*xi2)*dist4 - 6.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2);
+		f_1 = 1.0/(1024.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 - 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 - 16.0*(a_i+a_j)*dist3*xi4 + 20.0*dist4*xi4 + 3*dist2*(16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4) + 2*dist*(-12.0*(a_i+a_j)*xi2 - 8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4)) - 3.0/(1024.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(a_i+a_j) + 4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 + 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 - 4.0*(a_i+a_j)*dist4*xi4 + 4.0*dist5*xi4 + dist3*(16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4) + dist*(3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 - 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4) + dist2*(-12.0*(a_i+a_j)*xi2 - 8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4));
+		f_2 = 1.0/(1024.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 - 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 + 16.0*(a_i+a_j)*dist3*xi4 + 20.0*dist4*xi4 + 3*dist2*(16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4) + 2*dist*(12.0*(a_i+a_j)*xi2 + 8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4)) - 3.0/(1024.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(-3.0*(a_i+a_j) - 4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 - 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 + 4.0*(a_i+a_j)*dist4*xi4 + 4.0*dist5*xi4 + dist3*(16.0*xi2+8.0*(-4.0*a_i^2+a_i*a_j-4.0*a_j^2)*xi4) + dist*(3.0-12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 - 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4) + dist2*(12.0*(a_i+a_j)*xi2 + 8.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi4));
+		f_3 = 1.0/(1024.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 16.0*(-a_i+a_j)*dist3*xi4 - 20.0*dist4*xi4 + 3*dist2*(-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4) + 2*dist*(12.0*(-a_i+a_j)*xi2 - 8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4)) - 3.0/(1024.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(a_i-a_j) + 4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 + 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 4.0*(-a_i+a_j)*dist4*xi4 - 4.0*dist5*xi4 + dist3*(-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4) + dist*(-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4) + dist2*(12.0*(-a_i+a_j)*xi2 - 8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4));
+		f_4 = 1.0/(1024.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 16.0*(a_i+a_j)*dist3*xi4 - 20.0*dist4*xi4 + 3*dist2*(-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4) + 2*dist*(12.0*(a_i-a_j)*xi2 + 8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4)) - 3.0/(1024.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(-a_i+a_j) - 4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 - 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 4.0*(a_i-a_j)*dist4*xi4 - 4.0*dist5*xi4 + dist3*(-16.0*xi2+8.0*(4.0*a_i^2+a_i*a_j+4.0*a_j^2)*xi4) + dist*(-3.0+12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4) + dist2*(12.0*(a_i-a_j)*xi2 + 8.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi4));
+		f_5 = 1.0/(2048.0*(384.0*(a_i^3+a_j^3)*dist2*xi6-48.0*dist5*xi6+144.0*dist3*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2) + 2.0*dist*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4 + 72.0*(a_i^2-a_j^2)^2*xi6))) / (a_i^3*a_j^3*dist3*PI*xi6) - 3.0/(2048.0*a_i^3*a_j^3*dist4*PI*xi6)*(3.0-18.0*(a_i^2+a_j^2)*xi2-36.0*(a_i^2-a_j^2)*xi4 - 8.0*(a_i+a_j)^4*(a_i^2-4.0*a_i*a_j+a_j^2)*xi6 + 128.0*(a_i^3+a_j^3)*dist3*xi6-8.0*dist6*xi6 + 36.0*dist4*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2) + dist2*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4 + 72.0*(a_i^2-a_j^2)^2*xi6));
+		f_6 = 1.0/(2048.0*(-384.0*(a_i^3+a_j^3)*dist2*xi6-48.0*dist5*xi6+144.0*dist3*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2) + 2.0*dist*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4 + 72.0*(a_i^2-a_j^2)^2*xi6))) / (a_i^3*a_j^3*dist3*PI*xi6) - 3.0/(2048.0*a_i^3*a_j^3*dist4*PI*xi6)*(3.0-18.0*(a_i^2+a_j^2)*xi2-36.0*(a_i^2-a_j^2)*xi4 - 8.0*(a_i+a_j)^4*(a_i^2-4.0*a_i*a_j+a_j^2)*xi6 - 128.0*(a_i^3+a_j^3)*dist3*xi6-8.0*dist6*xi6 + 36.0*dist4*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2) + dist2*(-18.0*xi2+72.0*(a_i^2+a_j^2)*xi4 + 72.0*(a_i^2-a_j^2)^2*xi6));
+		f_7 = 1.0/(2048.0*(384.0*(a_i^3-a_j^3)*dist2*xi6+48.0*dist5*xi6+144.0*dist3*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2) + 2.0*dist*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4 - 72.0*(a_i^2-a_j^2)^2*xi6))) / (a_i^3*a_j^3*dist3*PI*xi6) - 3.0/(2048.0*a_i^3*a_j^3*dist4*PI*xi6)*(-3.0+18.0*(a_i^2+a_j^2)*xi2+36.0*(a_i^2-a_j^2)*xi4 + 8.0*(a_i-a_j)^4*(a_i^2+4.0*a_i*a_j+a_j^2)*xi6 + 128.0*(a_i^3-a_j^3)*dist3*xi6+8.0*dist6*xi6 + 36.0*dist4*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2) + dist2*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4 - 72.0*(a_i^2-a_j^2)^2*xi6));
+		f_8 = 1.0/(2048.0*(-384.0*(a_i^3-a_j^3)*dist2*xi6+48.0*dist5*xi6+144.0*dist3*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2) + 2.0*dist*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4 - 72.0*(a_i^2-a_j^2)^2*xi6))) / (a_i^3*a_j^3*dist3*PI*xi6) - 3.0/(2048.0*a_i^3*a_j^3*dist4*PI*xi6)*(-3.0+18.0*(a_i^2+a_j^2)*xi2+36.0*(a_i^2-a_j^2)*xi4 + 8.0*(a_i-a_j)^4*(a_i^2+4.0*a_i*a_j+a_j^2)*xi6 - 128.0*(a_i^3-a_j^3)*dist3*xi6+8.0*dist6*xi6 + 36.0*dist4*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2) + dist2*(18.0*xi2-72.0*(a_i^2+a_j^2)*xi4 - 72.0*(a_i^2-a_j^2)^2*xi6));
 
 		// Regularization for overlapping particles
+		// How to change this one for more types cases?
 		if (dist < 2) {
 			regpoly =  3.0/(4.0*PI*dist4) - 3.0/(64.0*PI)*(3.0 - dist2/2.0);
 		} else {
@@ -333,13 +402,23 @@ void MutualDipole::SetParams() {
 		// This term gets the .x field
 		h_forcetable.data[i].x = Scalar(exppolyp*expp + exppolym*expm + exppoly0*exp0 + erfpolyp*erfp + erfpolym*erfm + erfpoly0*erf0 + regpoly);
 
+		// // Force table; -(Si*r)(Sj*r)r component 
+		// exppolyp = 9.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 8.0*xi4*dist3 + 8.0*xi2*(1.0-2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppolym = 9.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 8.0*xi4*dist3 - 8.0*xi2*(1.0-2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
+		// exppoly0 = 9.0/(512.0*pow(PI,1.5)*xi5*dist3)*(-4.0*xi4*dist4 + 8.0*xi4*dist2 - 3.0+36.0*xi2);
+		// erfpolyp = 9.0/(2048.0*PI*xi6*dist4)*(-8.0*xi6*dist6 - 4.0*xi4*(1.0-4.0*xi2)*dist4 - 2.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
+		// erfpolym = erfpolyp;
+		// erfpoly0 = 9.0/(1024.0*PI*xi6*dist4)*(8.0*xi6*dist6 + 4.0*xi4*(1.0-4.0*xi2)*dist4 + 2.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2);
+
 		// Force table; -(Si*r)(Sj*r)r component 
-		exppolyp = 9.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 8.0*xi4*dist3 + 8.0*xi2*(1.0-2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppolym = 9.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 + 8.0*xi4*dist4 + 8.0*xi4*dist3 - 8.0*xi2*(1.0-2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
-		exppoly0 = 9.0/(512.0*pow(PI,1.5)*xi5*dist3)*(-4.0*xi4*dist4 + 8.0*xi4*dist2 - 3.0+36.0*xi2);
-		erfpolyp = 9.0/(2048.0*PI*xi6*dist4)*(-8.0*xi6*dist6 - 4.0*xi4*(1.0-4.0*xi2)*dist4 - 2.0*xi2*(1.0-8.0*xi2)*dist2 + 3.0-36.0*xi2+256.0*xi6);
-		erfpolym = erfpolyp;
-		erfpoly0 = 9.0/(1024.0*PI*xi6*dist4)*(8.0*xi6*dist6 + 4.0*xi4*(1.0-4.0*xi2)*dist4 + 2.0*xi2*(1.0-8.0*xi2)*dist2 - 3.0+36.0*xi2);
+		f_1 = 1.0/(512.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(-3.0+12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 + 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 - 32.0*(a_i+a_j)*dist3*xi4 + 40.0*dist4*xi4 + 3*dist2*(14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4) + 2*dist*(-6.0*(a_i+a_j)*xi2 - 4.0*(a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+a_j^3)*xi4)) - 3.0/(512.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(-3.0*(a_i+a_j) - 4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 - 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 - 8.0*(a_i+a_j)*dist4*xi4 + 8.0*dist5*xi4 + dist*(-3.0+12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 + 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4) + dist3*(14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4) + dist2*(-6.0*(a_i+a_j)*xi2 - 4.0*(a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+a_j^3)*xi4));	
+		f_2 = 1.0/(512.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(-3.0+12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 + 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 + 32.0*(a_i+a_j)*dist3*xi4 + 40.0*dist4*xi4 + 3*dist2*(14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4) + 2*dist*(6.0*(a_i+a_j)*xi2 + 4.0*(a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+a_j^3)*xi4)) - 3.0/(512.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(a_i+a_j) + 4.0*(4.0*a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+4.0*a_j^3)*xi2 + 4.0*(a_i+a_j)^3*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4 + 8.0*(a_i+a_j)*dist4*xi4 + 8.0*dist5*xi4 + dist*(-3.0+12.0*(a_i^2-a_i*a_j+a_j^2)*xi2 + 4.0*(a_i+a_j)^2*(a_i^2-4.0*a_i*a_j+a_j^2)*xi4) + dist3*(14.0*xi2-4.0*(7.0*a_i^2-4.0*a_i*a_j+7.0*a_j^2)*xi4) + dist2*(6.0*(a_i+a_j)*xi2 + 4.0*(a_i^3-3.0*a_i^2*a_j-3.0*a_i*a_j^2+a_j^3)*xi4));
+		f_3 = 1.0/(512.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(3.0-12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 - 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 32.0*(-a_i+a_j)*dist3*xi4 - 40.0*dist4*xi4 + 3*dist2*(-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4) + 2*dist*(6.0*(-a_i+a_j)*xi2 - 4.0*(a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-a_j^3)*xi4)) - 3.0/(512.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(-a_i+a_j) - 4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 - 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 8.0*(-a_i+a_j)*dist4*xi4 - 8.0*dist5*xi4 + dist*(3.0-12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 - 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4) + dist3*(-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4) + dist2*(6.0*(-a_i+a_j)*xi2 - 4.0*(a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-a_j^3)*xi4));
+		f_4 = 1.0/(512.0*a_i^3*a_j^3*dist3*pow(PI,1.5)*xi5)*(3.0-12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 32.0*(a_i-a_j)*dist3*xi4 - 40.0*dist4*xi4 + 3*dist2*(-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4) + 2*dist*(6.0*(a_i-a_j)*xi2 + 4.0*(a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-a_j^3)*xi4)) - 3.0/(512.0*a_i^3*a_j^3*dist4*pow(PI,1.5)*xi5)*(3.0*(a_i-a_j) + 4.0*(4.0*a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-4.0*a_j^3)*xi2 + 4.0*(a_i-a_j)^3*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4 + 8.0*(a_i-a_j)*dist4*xi4 - 8.0*dist5*xi4 + dist*(3.0-12.0*(a_i^2+a_i*a_j+a_j^2)*xi2 + 4.0*(a_i-a_j)^2*(a_i^2+4.0*a_i*a_j+a_j^2)*xi4) + dist3*(-14.0*xi2+4.0*(7.0*a_i^2+4.0*a_i*a_j+7.0*a_j^2)*xi4) + dist2*(6.0*(a_i-a_j)*xi2 + 4.0*(a_i^3+3.0*a_i^2*a_j-3.0*a_i*a_j^2-a_j^3)*xi4));
+		f_5 = 1.0/(1024.0*a_i^3*a_j^3*dist3*PI*xi6)*(192.0*(a_i^3+a_j^3)*dist2*xi6 - 96.0*dist5*xi6 +144.0*dist3*xi4*(-1.0+2.0*(a_i^2+a_j^2))) - 3.0/(1024.0*a_i^3*a_j^3*dist4*PI*xi6)*(-3.0+18.0*(a_i^2+a_j^2)*xi2+36.0*(a_i^2-a_j^2)^2*xi4 + 8.0*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6 + 64.0*(a_i^3+a_j^3)*dist3*xi6-16.0*dist6*xi6 + 36.0*dist4*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2));
+		f_6 = 1.0/(1024.0*a_i^3*a_j^3*dist3*PI*xi6)*(-192.0*(a_i^3+a_j^3)*dist2*xi6 - 96.0*dist5*xi6 +144.0*dist3*xi4*(-1.0+2.0*(a_i^2+a_j^2))) - 3.0/(1024.0*a_i^3*a_j^3*dist4*PI*xi6)*(-3.0+18.0*(a_i^2+a_j^2)*xi2+36.0*(a_i^2-a_j^2)^2*xi4 + 8.0*(a_i+a_j)^4*(a_i^2-4*a_i*a_j+a_j^2)*xi6 - 64.0*(a_i^3+a_j^3)*dist3*xi6-16.0*dist6*xi6 + 36.0*dist4*xi4*(-1.0+2.0*(a_i^2+a_j^2)*xi2));
+		f_7 = 1.0/(1024.0*a_i^3*a_j^3*dist3*PI*xi6)*(192.0*(a_i^3-a_j^3)*dist2*xi6 + 96.0*dist5*xi6 +144.0*dist3*xi4*(1.0-2.0*(a_i^2+a_j^2))) - 3.0/(1024.0*a_i^3*a_j^3*dist4*PI*xi6)*(3.0-18.0*(a_i^2+a_j^2)*xi2-36.0*(a_i^2-a_j^2)^2*xi4 - 8.0*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6 + 64.0*(a_i^3-a_j^3)*dist3*xi6+16.0*dist6*xi6 + 36.0*dist4*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2));
+		f_8 = 1.0/(1024.0*a_i^3*a_j^3*dist3*PI*xi6)*(192.0*(-a_i^3+a_j^3)*dist2*xi6 + 96.0*dist5*xi6 +144.0*dist3*xi4*(1.0-2.0*(a_i^2+a_j^2))) - 3.0/(1024.0*a_i^3*a_j^3*dist4*PI*xi6)*(3.0-18.0*(a_i^2+a_j^2)*xi2-36.0*(a_i^2-a_j^2)^2*xi4 - 8.0*(a_i-a_j)^4*(a_i^2+4*a_i*a_j+a_j^2)*xi6 + 64.0*(-a_i^3+a_j^3)*dist3*xi6+16.0*dist6*xi6 + 36.0*dist4*xi4*(1.0-2.0*(a_i^2+a_j^2)*xi2));
 
 		// Regularization for overlapping particles
 		if (dist < 2) {
