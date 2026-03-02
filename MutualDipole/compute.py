@@ -27,6 +27,9 @@ import math
 class MutualDipole(hoomd.md.force._force):
 
     # Initialize the MutualDipole class
+    # For group = A
+    # group_tag array is of size of Ntotal: group_tag = [A1, A2, A3, A4, A5, B1, B2, B3, B4, B5]
+    # conductivity array is of size of group size: conductivitiy = [A1, A2, A3, A4, A5]
     def __init__(self, group, group_tag, conductivity, field, gradient=[0., 0., 0.], xi = 0.5, errortol = 1e-3,
                  fileprefix = "", period = 0, constantdipoleflag = 0):
 
