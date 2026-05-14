@@ -49,6 +49,7 @@ public:
     CUFFTCOMPLEX *d_gridZ;  // pointer to z component of grid
     cufftHandle plan;  // plan for cuFFT
  
+    unsigned int ntypes;
     const unsigned int *d_nlist;  // pointer to neighbor list
     const unsigned int *d_head_list;  // pointer to head list used to access entries in the neighbor list
     const unsigned int *d_n_neigh;  // pointer to number of neighbors of each particle
@@ -56,8 +57,6 @@ public:
     int Ntable;  // number of entries in real space table
     Scalar drtable;  // real space table spacing
     Scalar4 *d_fieldtable;  // real space field table
-
-    unsigned int ntypes;
 
     // constructor
     cuspPotential(Scalar4 *d_pos,

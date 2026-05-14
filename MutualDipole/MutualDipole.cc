@@ -59,7 +59,7 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 	m_Ntotal = m_pdata->getN();
 
 	// Get the particle radii by HOOMD particle type
-	m_ntype = m_pdata->getNTypes(); 	// get number of particle types
+	m_ntypes = m_pdata->getNTypes(); 	// get number of particle types
 
 	if (radii.size() != m_ntypes)
 	{
@@ -348,6 +348,42 @@ void MutualDipole::SetParams() {
 			const unsigned int table_idx = pair_offset + i;
 			const unsigned int table_idx_next = pair_offset + i + 1;
 
+			double field_1_Irr = 0.0;
+			double field_2_Irr = 0.0;
+			double field_3_Irr = 0.0;
+			double field_4_Irr = 0.0;
+			double field_5_Irr = 0.0;
+			double field_6_Irr = 0.0;
+			double field_7_Irr = 0.0;
+			double field_8_Irr = 0.0;
+
+			double field_1_rr = 0.0;
+			double field_2_rr = 0.0;
+			double field_3_rr = 0.0;
+			double field_4_rr = 0.0;
+			double field_5_rr = 0.0;
+			double field_6_rr = 0.0;
+			double field_7_rr = 0.0;
+			double field_8_rr = 0.0;
+
+			double force_1_Irr = 0.0;
+			double force_2_Irr = 0.0;
+			double force_3_Irr = 0.0;
+			double force_4_Irr = 0.0;
+			double force_5_Irr = 0.0;
+			double force_6_Irr = 0.0;
+			double force_7_Irr = 0.0;
+			double force_8_Irr = 0.0;
+
+			double force_1_rr = 0.0;
+			double force_2_rr = 0.0;
+			double force_3_rr = 0.0;
+			double force_4_rr = 0.0;
+			double force_5_rr = 0.0;
+			double force_6_rr = 0.0;
+			double force_7_rr = 0.0;
+			double force_8_rr = 0.0;
+
 			// Particle separation corresponding to current table entry
 			double dist = (i + 1) * m_drtable;		
 			double dist2 = pow(dist,2);
@@ -445,10 +481,10 @@ void MutualDipole::SetParams() {
 			// erfpoly0 = 1.0/(512.0*PI*xi6*dist3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-4.0*xi2)*dist4 + 3.0-36.0*xi2);
 
 			// Field table: rr component
-			field_1_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(8.0*xi4*dist5 - 8.0*xi4*dist4*aipaj + (14.0*xi2-4.0*(7.0*ai2-4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (-6.0*aipaj*xi2-4.0*(ai3-3.0*ai2*a_j-3*a_i*aj2+aj3)*xi4)*dist2 + (-3.0+12.0(ai2-a_i*a_j+aj2)*xi2+4.0*aipaj2*(ai2-4*a_i*a_j+aj2)*xi4)*dist - 3.0*aipaj-4.0*(4.0*ai3-3.0*ai2*a_j-3.0*a_i*aj2+4.0*aj3)*xi2 - 4.0*aipaj3*(ai2-4.0*a_i*a_j+aj2)*xi4);
-			field_2_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(8.0*xi4*dist5 + 8.0*xi4*dist4*aipaj + (14.0*xi2-4.0*(7.0*ai2-4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (6.0*aipaj*xi2+4.0*(ai3-3.0*ai2*a_j-3*a_i*aj2+aj3)*xi4)*dist2 + (-3.0+12.0(ai2-a_i*a_j+aj2)*xi2+4.0*aipaj2*(ai2-4*a_i*a_j+aj2)*xi4)*dist + 3.0*aipaj+4.0*(4.0*ai3-3.0*ai2*a_j-3.0*a_i*aj2+4.0*aj3)*xi2 + 4.0*aipaj3*(ai2-4.0*a_i*a_j+aj2)*xi4);
-			field_3_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(-8.0*xi4*dist5 - 8.0*xi4*dist4*aimaj + (-14.0*xi2+4.0*(7.0*ai2+4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (-6.0*aimaj*xi2-4.0*(ai3+3.0*ai2*a_j-3*a_i*aj2-aj3)*xi4)*dist2 + (3.0-12.0(ai2+a_i*a_j+aj2)*xi2-4.0*aimaj2*(ai2+4*a_i*a_j+aj2)*xi4)*dist - 3.0*aimaj-4.0*(4.0*ai3+3.0*ai2*a_j-3.0*a_i*aj2-4.0*aj3)*xi2 - 4.0*aimaj3*(ai2+4.0*a_i*a_j+aj2)*xi4);
-			field_4_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(-8.0*xi4*dist5 + 8.0*xi4*dist4*aimaj + (-14.0*xi2+4.0*(7.0*ai2+4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (6.0*aimaj*xi2+4.0*(ai3+3.0*ai2*a_j-3*a_i*aj2-aj3)*xi4)*dist2 + (3.0-12.0(ai2+a_i*a_j+aj2)*xi2+4.0*aimaj2*(ai2+4*a_i*a_j+aj2)*xi4)*dist + 3.0*aimaj+4.0*(4.0*ai3+3.0*ai2*a_j-3.0*a_i*aj2-4.0*aj3)*xi2 + 4.0*aimaj3*(ai2+4.0*a_i*a_j+aj2)*xi4);
+			field_1_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(8.0*xi4*dist5 - 8.0*xi4*dist4*aipaj + (14.0*xi2-4.0*(7.0*ai2-4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (-6.0*aipaj*xi2-4.0*(ai3-3.0*ai2*a_j-3*a_i*aj2+aj3)*xi4)*dist2 + (-3.0+12.0*(ai2-a_i*a_j+aj2)*xi2+4.0*aipaj2*(ai2-4*a_i*a_j+aj2)*xi4)*dist - 3.0*aipaj-4.0*(4.0*ai3-3.0*ai2*a_j-3.0*a_i*aj2+4.0*aj3)*xi2 - 4.0*aipaj3*(ai2-4.0*a_i*a_j+aj2)*xi4);
+			field_2_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(8.0*xi4*dist5 + 8.0*xi4*dist4*aipaj + (14.0*xi2-4.0*(7.0*ai2-4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (6.0*aipaj*xi2+4.0*(ai3-3.0*ai2*a_j-3*a_i*aj2+aj3)*xi4)*dist2 + (-3.0+12.0*(ai2-a_i*a_j+aj2)*xi2+4.0*aipaj2*(ai2-4*a_i*a_j+aj2)*xi4)*dist + 3.0*aipaj+4.0*(4.0*ai3-3.0*ai2*a_j-3.0*a_i*aj2+4.0*aj3)*xi2 + 4.0*aipaj3*(ai2-4.0*a_i*a_j+aj2)*xi4);
+			field_3_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(-8.0*xi4*dist5 - 8.0*xi4*dist4*aimaj + (-14.0*xi2+4.0*(7.0*ai2+4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (-6.0*aimaj*xi2-4.0*(ai3+3.0*ai2*a_j-3*a_i*aj2-aj3)*xi4)*dist2 + (3.0-12.0*(ai2+a_i*a_j+aj2)*xi2-4.0*aimaj2*(ai2+4*a_i*a_j+aj2)*xi4)*dist - 3.0*aimaj-4.0*(4.0*ai3+3.0*ai2*a_j-3.0*a_i*aj2-4.0*aj3)*xi2 - 4.0*aimaj3*(ai2+4.0*a_i*a_j+aj2)*xi4);
+			field_4_rr = 1.0/(512.0*pow(PI,1.5)*xi5*dist3*ai3*aj3)*(-8.0*xi4*dist5 + 8.0*xi4*dist4*aimaj + (-14.0*xi2+4.0*(7.0*ai2+4.0*a_i*a_j+7.0*aj2)*xi4)*dist3 + (6.0*aimaj*xi2+4.0*(ai3+3.0*ai2*a_j-3*a_i*aj2-aj3)*xi4)*dist2 + (3.0-12.0*(ai2+a_i*a_j+aj2)*xi2+4.0*aimaj2*(ai2+4*a_i*a_j+aj2)*xi4)*dist + 3.0*aimaj+4.0*(4.0*ai3+3.0*ai2*a_j-3.0*a_i*aj2-4.0*aj3)*xi2 + 4.0*aimaj3*(ai2+4.0*a_i*a_j+aj2)*xi4);
 			field_5_rr = 1.0/(1024.0*PI*xi6*dist3*ai3*aj3)*(-16.0*xi6*dist6 + 36.0*xi4*(-1.0+2.0*(ai2+aj2)*xi2)*dist4 + 64.0*xi6*dist3*(ai3+aj3) - 3.0+18.0*xi2*(ai2+aj2) + 36.0*pow((ai2-aj2),2)*xi4 + 8*aipaj4*(ai2-4*a_i*a_j+aj2)*xi6);
 			field_6_rr = 1.0/(1024.0*PI*xi6*dist3*ai3*aj3)*(-16.0*xi6*dist6 + 36.0*xi4*(-1.0+2.0*(ai2+aj2)*xi2)*dist4 - 64.0*xi6*dist3*(ai3+aj3) - 3.0+18.0*xi2*(ai2+aj2) + 36.0*pow((ai2-aj2),2)*xi4 + 8*aipaj4*(ai2-4*a_i*a_j+aj2)*xi6);
 			field_7_rr = 1.0/(1024.0*PI*xi6*dist3*ai3*aj3)*(16.0*xi6*dist6 + 36.0*xi4*(1.0-2.0*(ai2+aj2)*xi2)*dist4 + 64.0*xi6*dist3*(ai3-aj3) + 3.0-18.0*xi2*(ai2+aj2) - 36.0*pow((ai2-aj2),2)*xi4 - 8*aimaj4*(ai2+4*a_i*a_j+aj2)*xi6);
@@ -462,7 +498,7 @@ void MutualDipole::SetParams() {
 			// }
 
 			// Regularization for overlapping particles (MATLAB version #2)
-			double regpoly = 0.0;
+			regpoly = 0.0;
 
 			// Case 1: (r < ai+aj) & (r >= ai-aj) & (r >= aj-ai)  <=> r < ai+aj and r >= |ai-aj|
 			if (dist < a_i + a_j && dist >= a_i - a_j && dist >= a_j - a_i) {
@@ -506,7 +542,7 @@ void MutualDipole::SetParams() {
 			// }
 
 			// Regularization for overlapping particles
-			double regpoly = 0.0;
+			regpoly = 0.0;
 
 			if (dist < a_i + a_j && dist >= a_i - a_j && dist >= a_j - a_i) {
 
@@ -525,7 +561,7 @@ void MutualDipole::SetParams() {
 			}
 
 			// This term gets the .x field
-			h_forcetable.data[table_idx].x = Scalar(field_1_Irr*dexp_1 + force_1_Irr*exp_1 + field_2_Irr*dexp_2 + force_2_Irr*exp_2 + field_3_Irr*dexp_3 + force_3_Irr*exp_3 + field_4_Irr*dexp_4 + force_4_Irr*exp_4 + field_5_Irr*derf_5 + force_5_Irr*erf_5 + field_6_Irr*derf_6 + force_6_Irr*erf_6 + field_7_Irr*derf_7 + force_y_Irr*erf_7 + field_8_Irr*derf_8 + force_8_Irr*erf8 + regpoly);
+			h_forcetable.data[table_idx].x = Scalar(field_1_Irr*dexp_1 + force_1_Irr*exp_1 + field_2_Irr*dexp_2 + force_2_Irr*exp_2 + field_3_Irr*dexp_3 + force_3_Irr*exp_3 + field_4_Irr*dexp_4 + force_4_Irr*exp_4 + field_5_Irr*derf_5 + force_5_Irr*erf_5 + field_6_Irr*derf_6 + force_6_Irr*erf_6 + field_7_Irr*derf_7 + force_7_Irr*erf_7 + field_8_Irr*derf_8 + force_8_Irr*erf_8 + regpoly);
 
 			// // Force table; -(Si*r)(Sj*r)r component 
 			// exppolyp = 9.0/(1024.0*pow(PI,1.5)*xi5*dist4)*(4.0*xi4*dist5 - 8.0*xi4*dist4 + 8.0*xi4*dist3 + 8.0*xi2*(1.0-2.0*xi2)*dist2 + (3.0-12.0*xi2+32.0*xi4)*dist + 2.0*(3.0+4.0*xi2-32.0*xi4));
