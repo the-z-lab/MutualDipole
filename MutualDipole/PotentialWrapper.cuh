@@ -57,6 +57,8 @@ public:
     Scalar drtable;  // real space table spacing
     Scalar4 *d_fieldtable;  // real space field table
 
+    unsigned int ntypes;
+
     // constructor
     cuspPotential(Scalar4 *d_pos,
 		  Scalar *d_conductivity,
@@ -83,6 +85,7 @@ public:
           int Ntable,
           Scalar drtable,
 		  Scalar4 *d_fieldtable,
+          unsigned int ntypes,
           const unsigned int *d_nlist,
 		  const unsigned int *d_head_list,
 		  const unsigned int *d_n_neigh)
@@ -112,6 +115,7 @@ public:
           Ntable(Ntable),
           drtable(drtable),
 		  d_fieldtable(d_fieldtable),
+          ntypes(ntypes),
 		  d_nlist(d_nlist),
 		  d_head_list(d_head_list),
 		  d_n_neigh(d_n_neigh){}
@@ -131,7 +135,7 @@ public:
 	    Scalar3 *E0_ptr2 = (Scalar3 *) &E0_ptr[0];
 
         // Compute E0 = M*S
-	    ComputeField( d_pos, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+	    ComputeField( d_pos, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
 
     }
 };

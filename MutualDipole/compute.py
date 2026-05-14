@@ -30,7 +30,17 @@ class MutualDipole(hoomd.md.force._force):
     # For group = A
     # group_tag array is of size of Ntotal: group_tag = [A1, A2, A3, A4, A5, B1, B2, B3, B4, B5]
     # conductivity array is of size of group size: conductivitiy = [A1, A2, A3, A4, A5]
-    def __init__(self, group, group_tag, conductivity, field, gradient=[0., 0., 0.], xi = 0.5, errortol = 1e-3,
+
+    # radii[type_id] = radius of that HOOMD particle type
+    # Example:
+    # type id 0 -> 'small'
+    # type id 1 -> 'large'
+    # type id 2 -> 'wall'
+    # radii = [a_small, a_large, a_wall]
+    # radii = [1.0, 1.5, 2.0]
+    # Even if certian type is not included in the plugin, should still list radii of all of the type
+
+    def __init__(self, group, group_tag, conductivity, radii, field, gradient=[0., 0., 0.], xi = 0.5, errortol = 1e-3,
                  fileprefix = "", period = 0, constantdipoleflag = 0):
 
         hoomd.util.print_status_line();
@@ -60,7 +70,7 @@ class MutualDipole(hoomd.md.force._force):
 
             # Add the new force to the system
             self.cpp_force = _MutualDipole.MutualDipole(hoomd.context.current.system_definition, group.cpp_group,
-                                                        self.neighbor_list, group_tag, conductivity, field, gradient, xi, errortol, fileprefix,
+                                                        self.neighbor_list, group_tag, conductivity, radii, field, gradient, xi, errortol, fileprefix,
                                                         period, constantdipoleflag, hoomd.context.current.system.getCurrentTimeStep());
             hoomd.context.current.system.addCompute(self.cpp_force,self.force_name);
 

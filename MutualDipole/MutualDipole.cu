@@ -112,7 +112,6 @@ __global__ void groupmembership_tag( int *d_group_membership_tag, // pointer to 
 		// Set the group-specific index at the current particle's global index position in the group membership list
 		d_group_membership_tag[tag] = group_idx; // Map tag -> group_idx
 	}
-
 }
 
 // Spread particle dipole moments to a uniform grid.  Use a P-by-P-by-P block per particle with a thread per grid node. 
@@ -485,6 +484,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					int Ntable, // number of entries in the real space table
 					Scalar drtable, // spacing between table entries
 					Scalar4 *d_fieldtable, // pointer to real space field table
+					unsigned int ntypes,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
 					const unsigned int *d_n_neigh, // pointer to the number of neighbors of each particle 
@@ -524,14 +524,15 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		// Current particle position and type
 		Scalar4 postypei = __ldg(d_pos+idx);
 		Scalar3 posi = make_scalar3(postypei.x, postypei.y, postypei.z);
+		unsigned int type_i = __scalar_as_int(postypei.w);
 
 		// Minimum and maximum distances squared for pair calculation
 		Scalar rc2 = rc*rc;
 		Scalar rmin2 = drtable*drtable;
 
 		// Loop over neighbors
-    		for (int j=0; j < n_neigh; j++) {
-			
+    	for (int j=0; j < n_neigh; j++) {
+
 			// Get neighbor global and group index
 			unsigned int neigh_idx = d_nlist[head_i + j];
 			unsigned int neigh_tag = d_tag[neigh_idx];
@@ -544,6 +545,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 				// Position and type of neighbor particle
 				Scalar4 postypej = __ldg(d_pos+neigh_idx);
 				Scalar3 posj = make_scalar3(postypej.x, postypej.y, postypej.z);
+				unsigned int type_j = __scalar_as_int(postypej.w);
 
 				// Distance vector between current particle and neighbor
         			Scalar3 r = posi - posj;
@@ -564,7 +566,11 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 
 					// Read the table values closest to the current distance
 					int tableind = __scalar2int_rd( Ntable * (dist-drtable)/(rc-drtable) );	
-					Scalar4 entry = __ldg(d_fieldtable+tableind);
+
+					unsigned int pair_index = type_i * ntypes + type_j;
+					unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
+
+					Scalar4 entry = __ldg(d_fieldtable + full_tableind);
 
 					// Linearly interpolate between the table values
 					Scalar lininterp = dist/drtable - tableind - Scalar(1.0);
@@ -600,6 +606,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 					int Ntable, // number of entries in the real space table
 					Scalar drtable, // spacing between table entries
 					Scalar4 *d_forcetable, // pointer to real space force table
+					unsigned int ntypes,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
 					const unsigned int *d_n_neigh) // pointer to the number of neighbors of each particle 
@@ -635,6 +642,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 		// Current particle position and type
 		Scalar4 postypei = __ldg(d_pos+idx);
 		Scalar3 posi = make_scalar3(postypei.x, postypei.y, postypei.z);
+		unsigned int type_i = __scalar_as_int(postypei.w);
 
 		// Minimum and maximum distances squared for pair calculation
 		Scalar rc2 = rc*rc;
@@ -655,6 +663,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 				// Position and type of neighbor particle
 				Scalar4 postypej = __ldg(d_pos+neigh_idx);
 				Scalar3 posj = make_scalar3(postypej.x, postypej.y, postypej.z);
+				unsigned int type_j = __scalar_as_int(postypej.w);
 
 				// Distance vector between current particle and neighbor
         			Scalar3 r = posi - posj;
@@ -677,7 +686,11 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 	
 					// Read the table values closest to the current distance
 					int tableind = __scalar2int_rd( Ntable * (dist-drtable)/(rc-drtable) );	
-					Scalar4 entry = __ldg(d_forcetable+tableind);
+
+					unsigned int pair_index = type_i * ntypes + type_j;
+					unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
+
+					Scalar4 entry = __ldg(d_forcetable + full_tableind);
 
 					// Linearly interpolate between the table values
 					Scalar lininterp = dist/drtable - tableind - Scalar(1.0);
@@ -725,6 +738,7 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
+				unsigned int ntypes,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
@@ -777,7 +791,7 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
 	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, d_tag, d_group_tag, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
 
 	// Compute the real space contribution to the field
-    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh, selfterm); 
+    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh, selfterm); 
 
     gpuErrchk(cudaPeekAtLastError());
     return cudaSuccess;
@@ -812,12 +826,13 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
+				unsigned int ntypes,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
 {
 	// Create the matrix-free potential linear operator
-	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
 
 	// Allocate storage for the solution vector (S) and output of the matrix/vector multiply (E0) on the GPU
 	cusp::array1d<float, cusp::device_memory> S(M.num_rows, 0);
@@ -877,6 +892,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
 				Scalar4 *d_forcetable, // pointer to real space force coefficient table
+				unsigned int ntypes,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh, // pointer to number of neighbors of each particle
@@ -907,13 +923,14 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 	Scalar prefac = xiterm*xi/PI*sqrtf(2.0/(PI*eta.x*eta.y*eta.z));  // prefactor for the spreading and contracting exponentials
 
 	// Handle the real space tables and particle positions as textured memory
+	// Now the tables are larger: (Ntable + 1) * ntypes * ntypes
     fieldtable_tex.normalized = false;
     fieldtable_tex.filterMode = cudaFilterModePoint; 
-    cudaBindTexture(0, fieldtable_tex, d_fieldtable, sizeof(Scalar4) * (Ntable+1));
+    cudaBindTexture(0, fieldtable_tex, d_fieldtable, sizeof(Scalar4) * (Ntable+1) * ntypes * ntypes);
 
 	forcetable_tex.normalized = false;
     forcetable_tex.filterMode = cudaFilterModePoint;
-    cudaBindTexture(0, forcetable_tex, d_forcetable, sizeof(Scalar4) * (Ntable+1));
+    cudaBindTexture(0, forcetable_tex, d_forcetable, sizeof(Scalar4) * (Ntable+1) * ntypes * ntypes);
 
     pos_tex.normalized = false;
     pos_tex.filterMode = cudaFilterModePoint;
@@ -925,7 +942,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 
 	// Compute the particle dipoles.  If constantdipoleflag = 1, this step is skipped and the particles keep their constant dipole model values that were precomputed on the host.
 	if (constantdipoleflag != 1) {
-		ComputeDipole( d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
+		ComputeDipole( d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
 	}
 
     // Reset the grid values to zero
@@ -953,7 +970,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 	contractforce<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_force, group_size, d_group_members, d_tag, d_group_tag, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);   
 
 	// Compute the real space contribution to the force
-    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_dipole, field, gradient, d_force, group_size,  d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_forcetable, d_nlist, d_head_list, d_n_neigh);
+    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_dipole, field, gradient, d_force, group_size,  d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_forcetable, ntypes, d_nlist, d_head_list, d_n_neigh);
 
 	// Unbind the textured memory
 	cudaUnbindTexture(fieldtable_tex);

@@ -50,6 +50,7 @@ cudaError_t gpu_ComputeForce(Scalar4 *d_pos, // pointer to particle positions
 			     Scalar drtable, // real space table spacing
 			     Scalar4 *d_fieldtable, // pointer to real space field coefficient table
 			     Scalar4 *d_forcetable, // pointer to real space force coefficient table
+				 unsigned int ntypes,
                  const unsigned int *d_nlist, // pointer to neighbor list
                  const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 			     const unsigned int *d_n_neigh, // pointer to number of neighbors of each particle
@@ -83,6 +84,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle posisitons
 			 int Ntable, // number of entries in the real space table
 			 Scalar drtable, // spacing between table entries
 			 Scalar4 *d_fieldtable, // pointer to real space field table
+			 unsigned int ntypes, 
 			 const unsigned int *d_nlist, // pointer to neighbor list
 			 const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 			 const unsigned int *d_n_neigh); // pointer to number of neighbors of each particle
