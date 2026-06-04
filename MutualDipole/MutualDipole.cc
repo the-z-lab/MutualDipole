@@ -264,7 +264,7 @@ void MutualDipole::SetParams() {
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
-	m_radii_types = unsigned int(h_radii.size());
+	m_radii_types = static_cast<unsigned int>(h_radii.size());
 
 	const unsigned int table_width = m_Ntable + 1;
 	const unsigned int table_size = table_width * m_radii_types * m_radii_types;
