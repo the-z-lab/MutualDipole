@@ -724,8 +724,11 @@ void MutualDipole::computeForces(unsigned int timestep) {
 	// particle positions
 	ArrayHandle<Scalar4> d_pos(m_pdata->getPositions(), access_location::device, access_mode::read);
 
+	// particle radii
+	ArrayHandle<Scalar> d_radii(m_radii, access_location::device, access_mode::read);
+
 	// particle conductivities
-	ArrayHandle<Scalar> d_conductivity(m_conductivity, access_location::device, access_mode::read);
+	ArrayHandle<Scalar> d_conductivity(m_conductivity, access_location::device, access_mode::readwrite);
 
 	// particle dipoles
 	ArrayHandle<Scalar3> d_dipole(m_dipole, access_location::device, access_mode::readwrite);
