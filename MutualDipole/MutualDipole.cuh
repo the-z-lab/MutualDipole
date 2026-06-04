@@ -27,7 +27,7 @@ cudaError_t gpu_ComputeForce(Scalar4 *d_pos, // pointer to particle positions
 			     Scalar3 gradient, // external field gradient
 			     Scalar4 *d_force, // pointer to the particle forces
 			     unsigned int Ntotal, // total number of particles
-                 int group_size, // number of particles in active group
+                 unsigned int group_size, // number of particles in active group
 			     int *d_group_membership_tag, // pointer to particle membership and index in active group
                  unsigned int *d_group_members, // pointer to indices of particles in active group
 				 int *d_group_tag, 
@@ -65,7 +65,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle posisitons
 			 Scalar *d_conductivity, // pointer to particle conductivities
 			 Scalar3 *d_dipole, // pointer to particle dipoles
 			 Scalar3 *d_extfield, // pointer to external field at particle centers
-			 int group_size, // number of particles in active
+			 unsigned int group_size, // number of particles in active
 			 int *d_group_membership_tag, // pointer to particle membership and index in active group 
 			 unsigned int *d_group_members, // pointer to indices of particles in active group
 			 unsigned int *d_tag, 

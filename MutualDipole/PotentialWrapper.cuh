@@ -27,7 +27,7 @@ public:
     unsigned int *d_radii_tag;
     Scalar *d_conductivity;  // pointer to particle conductivity
 
-    int group_size;  // number of active particles
+    unsigned int group_size;  // number of active particles
     int *d_group_membership_tag;  // pointer to particle membership and index in active group
     unsigned int *d_group_members;  // pointer to indices of particles in the active group
     unsigned int *d_tag;
@@ -65,7 +65,7 @@ public:
           Scalar *d_radii, 
           unsigned int *d_radii_tag, 
 		  Scalar *d_conductivity,
-		  int group_size,
+		  unsigned int group_size,
 		  int *d_group_membership_tag,
 		  unsigned int *d_group_members,
           unsigned int *d_tag,

@@ -97,7 +97,7 @@ __global__ void initialize_groupmembership_tag( int *d_group_membership_tag, // 
 // That is, d_group_members[d_group_membership[i]] = i.
 __global__ void groupmembership_tag( int *d_group_membership_tag, // pointer to active group membership list
 				 unsigned int *d_group_members, // pointer to indices of active group members
-				 int group_size, // number of particles in the active group
+				 unsigned int group_size, // number of particles in the active group
 				 unsigned int *d_tag)
 {
 	// Group-specific particle index
@@ -117,7 +117,7 @@ __global__ void groupmembership_tag( int *d_group_membership_tag, // pointer to 
 // Spread particle dipole moments to a uniform grid.  Use a P-by-P-by-P block per particle with a thread per grid node. 
 __global__ void spread( Scalar4 *d_pos, // pointer to particle positions
 			Scalar3 *d_dipole, // pointer to particle dipole moments
-			int group_size, // number of particles belonging to the active group
+			unsigned int group_size, // number of particles belonging to the active group
 			unsigned int *d_group_members, // pointer to particle indices belonging to the group
 			unsigned int *d_tag, 
 			int *d_group_tag, // An input from python side, no calculation needed
@@ -248,7 +248,7 @@ __global__ void scale(  Scalar4 *gridk,      // pointer to wave vector and scali
 __global__ void contractfield(	Scalar4 *d_pos,  // pointer to particle positions
 				Scalar3 *d_dipole, // pointer to particle dipole moments
 				Scalar3 *d_extfield, // pointer to external field at particle centers
-				int group_size, // number of particles in the active group
+				unsigned int group_size, // number of particles in the active group
 				unsigned int *d_group_members, // pointer to indices of particles belonging to the activer group
 				unsigned int *d_tag, 
 				int *d_group_tag, 
@@ -359,7 +359,7 @@ __global__ void contractfield(	Scalar4 *d_pos,  // pointer to particle positions
 __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 				Scalar3 *d_dipole, // pointer to particle dipole moments
 				Scalar4 *d_force, // pointer to particle forces
-				int group_size, // number of particles in the active group
+				unsigned int group_size, // number of particles in the active group
 				unsigned int *d_group_members, // pointer to indices of particles belonging to the active group
 				unsigned int *d_tag, 
 				int *d_group_tag, 
@@ -476,7 +476,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					Scalar *d_conductivity, // pointer to particle conductivities
 					Scalar3 *d_dipole, // pointer to particle dipoles
 					Scalar3 *d_extfield, // pointer to particle external field
-					int group_size, // number of particles in the active group
+					unsigned int group_size, // number of particles in the active group
 					int *d_group_membership_tag, // particle membership and index in active group
 					unsigned int *d_group_members, // pointer to indices of particles in the active group
 					unsigned int *d_tag, 
@@ -606,7 +606,7 @@ __global__ void real_space_force(Scalar4 *d_pos, // pointer to particle position
 					Scalar3 field, // external field
 					Scalar3 gradient, // external field gradient
 					Scalar4 *d_force, // pointer to particle forces
-					int group_size, // number of particles in active group
+					unsigned int group_size, // number of particles in active group
 					int *d_group_membership_tag, // pointer to particle membership and index in active group
 					unsigned int *d_group_members, // pointer to indices of particles in the active group
 					unsigned int *d_tag, 
@@ -729,7 +729,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
-				int group_size, // number of particles in active
+				unsigned int group_size, // number of particles in active
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				unsigned int *d_tag, 
@@ -818,7 +818,7 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
-				int group_size, // number of particles in active
+				unsigned int group_size, // number of particles in active
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				unsigned int *d_tag, 
@@ -885,7 +885,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 				Scalar3 gradient, // external field gradient
 				Scalar4 *d_force, // pointer to particle forces
 				unsigned int Ntotal, // total number of particles
-				int group_size, // number of particles in active group
+				unsigned int group_size, // number of particles in active group
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				int *d_group_tag, 
