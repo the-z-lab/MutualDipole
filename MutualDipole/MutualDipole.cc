@@ -570,11 +570,7 @@ void MutualDipole::SetParams() {
 			force_8_rr = 1.0/(1024.0*ai3*aj3*dist3*PI*xi6)*(192.0*(-ai3+aj3)*dist2*xi6 + 96.0*dist5*xi6 +144.0*dist3*xi4*(1.0-2.0*(ai2+aj2))) - 3.0/(1024.0*ai3*aj3*dist4*PI*xi6)*(3.0-18.0*(ai2+aj2)*xi2-36.0*pow((ai2-aj2),2)*xi4 - 8.0*aimaj4*(ai2+4*a_i*a_j+aj2)*xi6 + 64.0*(-ai3+aj3)*dist3*xi6+16.0*dist6*xi6 + 36.0*dist4*xi4*(1.0-2.0*(ai2+aj2)*xi2));
 
 			// // Regularization for overlapping particles
-			// if (dist < 2) {
-			// 	regpoly =  -9.0/(4.0*PI*dist4) - 9.0/(64.0*PI)*(1.0 - dist2/2.0);
-			// } else {
-			// 	regpoly = 0.0;
-			// }
+			regpoly = 0.0;
 
 			// Case 1: (r < ai+aj) & (r >= ai-aj) & (r >= aj-ai)  <=> r < ai+aj and r >= |ai-aj|
 			if (dist < a_i + a_j && dist >= a_i - a_j && dist >= a_j - a_i) {
