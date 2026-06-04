@@ -331,10 +331,10 @@ void MutualDipole::SetParams() {
 			double aimaj3 = pow(aimaj,3);
 			double aimaj4 = pow(aimaj,4);
 
-		for (int i = 0; i <= m_Ntable; i++)
+		for (unsigned int table_i = 0; table_i <= m_Ntable; table_i++)
 		{
-			const unsigned int table_idx = pair_offset + i;
-			const unsigned int table_idx_next = pair_offset + i + 1;
+			const unsigned int table_idx = pair_offset + table_i;
+			const unsigned int table_idx_next = pair_offset + table_i + 1;
 
 			double field_1_Irr = 0.0;
 			double field_2_Irr = 0.0;
@@ -401,11 +401,11 @@ void MutualDipole::SetParams() {
 			// Derivative of the exponentials and complimentary error functions
 			double dexp_1 = -2.0*(aipaj+dist)*exp(-pow((aipaj+dist),2)*xi2)*xi2;
 			double dexp_2 = -2.0*(-aipaj+dist)*exp(-pow((-aipaj+dist),2)*xi2)*xi2;
-			double dexp_3 = -2.0*(-aipaj+dist)*exp(-pow((-aipaj+dist),2)*xi2)*xi2;
+			double dexp_3 = -2.0*(-aimaj+dist)*exp(-pow((-aimaj+dist),2)*xi2)*xi2;
 			double dexp_4 = -2.0*(aimaj+dist)*exp(-pow((aimaj+dist),2)*xi2)*xi2;
 			double derf_5 = -((2.0*exp(-pow((aipaj+dist),2)*xi2)*xi)/pow(PI,0.5));
-			double derf_6 = -((2.0*exp(-pow((aipaj+dist),2)*xi2)*xi)/pow(PI,0.5));
-			double derf_7 = -((2.0*exp(-pow((-aipaj+dist),2)*xi2)*xi)/pow(PI,0.5));
+			double derf_6 = -((2.0*exp(-pow((-aipaj+dist),2)*xi2)*xi)/pow(PI,0.5));
+			double derf_7 = -((2.0*exp(-pow((-aimaj+dist),2)*xi2)*xi)/pow(PI,0.5));
 			double derf_8 = -((2.0*exp(-pow((aimaj+dist),2)*xi2)*xi)/pow(PI,0.5));
 
 			// // Field table; I-rr component
@@ -458,7 +458,7 @@ void MutualDipole::SetParams() {
 			h_fieldtable.data[table_idx].x = Scalar(field_1_Irr*exp_1 + field_2_Irr*exp_2 + field_3_Irr*exp_3 + field_4_Irr*exp_4 + field_5_Irr*erf_5 + field_6_Irr*erf_6 + field_7_Irr*erf_7 + field_8_Irr*erf_8 + regpoly);
 
 			// Handle the r->0 separatly
-			h_fieldtable.data[pair_offset].x = Scalar(1.0/(16.0*pow(PI,1.5)*ai3*a_j*3*xi3)*((1.0-2.0*ai2*xi2+2.0*a_i*a_j*xi2-2.0*aj2*xi2)*exp(-aipaj2*xi2) + (-1.0+2.0*ai2*xi2+2.0*a_i*a_j*xi2+2.0*aj2*xi2)*exp(-aimaj2*xi2)) + 1.0/(8.0*PI*ai3*aj3)*((ai3-aj3)*erf(aimaj*xi) - (ai3+aj3)*erf(aipaj*xi)) + min(ai3,aj3)/(4*PI*ai3*aj3));
+			h_fieldtable.data[pair_offset].x = Scalar(1.0/(16.0*pow(PI,1.5)*ai3*aj3*xi3)*((1.0-2.0*ai2*xi2+2.0*a_i*a_j*xi2-2.0*aj2*xi2)*exp(-aipaj2*xi2) + (-1.0+2.0*ai2*xi2+2.0*a_i*a_j*xi2+2.0*aj2*xi2)*exp(-aimaj2*xi2)) + 1.0/(8.0*PI*ai3*aj3)*((ai3-aj3)*erf(aimaj*xi) - (ai3+aj3)*erf(aipaj*xi)) + min(ai3,aj3)/(4*PI*ai3*aj3));
 
 			// // Field table: rr component
 			// exppolyp = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 - 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 - 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
@@ -593,7 +593,7 @@ void MutualDipole::SetParams() {
 			h_forcetable.data[table_idx].y = Scalar(field_1_rr*dexp_1 + force_1_rr*exp_1 + field_2_rr*dexp_2 + force_2_rr*exp_2 + field_3_rr*dexp_3 + force_3_rr*exp_3 + field_4_rr*dexp_4 + force_4_rr*exp_4 + field_5_rr*derf_5 + force_5_rr*erf_5 + field_6_rr*derf_6 + force_6_rr*erf_6 + field_7_rr*derf_7 + force_7_rr*erf_7 + field_8_rr*derf_8 + force_8_rr*erf_8 + regpoly);
 		}
 
-		for (int i = 0; i < m_Ntable; i++)
+		for (unsigned int table_i = 0; table_i < m_Ntable; table_i++)
 		{
 			const unsigned int table_idx = pair_offset + i;
 			const unsigned int table_idx_next = pair_offset + i + 1;
