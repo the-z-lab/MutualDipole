@@ -28,6 +28,7 @@ class MutualDipole : public ForceCompute {
 				  	 std::vector<int> &group_tag,
 				  	 std::vector<float> &conductivity,
 					 std::vector<float> &radii, 
+					 std::vector<unsigned int> &radii_tag, 
 		      		 std::vector<float> &field,
 		      		 std::vector<float> &gradient,
 	              	 Scalar xi,
@@ -49,6 +50,9 @@ class MutualDipole : public ForceCompute {
 
 	// Update simulation parameters
 	void UpdateParameters(std::vector<int> &group_tag, 
+						  std::vector<float> &conductivity, 
+						  std::vector<float> &radii,
+						  std::vector<unsigned int> &radii_tag,
 				  		  std::vector<float> &field,
 			      		  std::vector<float> &gradient,
 			      		  std::vector<float> &conductivity,
@@ -75,7 +79,8 @@ class MutualDipole : public ForceCompute {
 	GPUArray<Scalar> m_conductivity;		// particle conductivities
 
 	GPUArray<Scalar> m_radii;			// particle radii by type
-	unsigned int m_ntypes;			// number of HOOMD particle types
+	GPUArray<unsigned int> m_radii_tag;
+	unsigned int m_radii_types;			// number of particle radii types
 
 	int m_Ntotal;					// total number of particles
 	int m_group_size;				// number of particles in the active group

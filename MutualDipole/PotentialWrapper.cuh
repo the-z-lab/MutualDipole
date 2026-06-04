@@ -26,7 +26,7 @@ public:
     Scalar *d_radii;
     Scalar *d_conductivity;  // pointer to particle conductivity
 
-    unsigned int group_size;  // number of active particles
+    int group_size;  // number of active particles
     int *d_group_membership_tag;  // pointer to particle membership and index in active group
     unsigned int *d_group_members;  // pointer to indices of particles in the active group
     unsigned int *d_tag;
@@ -50,7 +50,6 @@ public:
     CUFFTCOMPLEX *d_gridZ;  // pointer to z component of grid
     cufftHandle plan;  // plan for cuFFT
  
-    unsigned int ntypes;
     const unsigned int *d_nlist;  // pointer to neighbor list
     const unsigned int *d_head_list;  // pointer to head list used to access entries in the neighbor list
     const unsigned int *d_n_neigh;  // pointer to number of neighbors of each particle
@@ -58,12 +57,14 @@ public:
     int Ntable;  // number of entries in real space table
     Scalar drtable;  // real space table spacing
     Scalar4 *d_fieldtable;  // real space field table
+    unsigned int ntypes;
 
     // constructor
     cuspPotential(Scalar4 *d_pos,
           Scalar *d_radii, 
+          unsigned int *d_radii_tag, 
 		  Scalar *d_conductivity,
-		  unsigned int group_size,
+		  int group_size,
 		  int *d_group_membership_tag,
 		  unsigned int *d_group_members,
           unsigned int *d_tag,
@@ -86,13 +87,14 @@ public:
           int Ntable,
           Scalar drtable,
 		  Scalar4 *d_fieldtable,
-          unsigned int ntypes,
+          unsigned int radii_types,
           const unsigned int *d_nlist,
 		  const unsigned int *d_head_list,
 		  const unsigned int *d_n_neigh)
           : super(3*group_size,3*group_size), 
 		  d_pos(d_pos),
           d_radii(d_radii),
+          d_radii_tag(d_radii_tag),
 		  d_conductivity(d_conductivity),
           group_size(group_size),
 		  d_group_membership_tag(d_group_membership_tag),
@@ -117,7 +119,7 @@ public:
           Ntable(Ntable),
           drtable(drtable),
 		  d_fieldtable(d_fieldtable),
-          ntypes(ntypes),
+          radii_types(radii_types),
 		  d_nlist(d_nlist),
 		  d_head_list(d_head_list),
 		  d_n_neigh(d_n_neigh){}
@@ -137,7 +139,7 @@ public:
 	    Scalar3 *E0_ptr2 = (Scalar3 *) &E0_ptr[0];
 
         // Compute E0 = M*S
-	    ComputeField( d_pos, d_radii, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
+	    ComputeField( d_pos, d_radii, d_radii_tag, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh);
 
     }
 };

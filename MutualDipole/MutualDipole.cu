@@ -97,7 +97,7 @@ __global__ void initialize_groupmembership_tag( int *d_group_membership_tag, // 
 // That is, d_group_members[d_group_membership[i]] = i.
 __global__ void groupmembership_tag( int *d_group_membership_tag, // pointer to active group membership list
 				 unsigned int *d_group_members, // pointer to indices of active group members
-				 unsigned int group_size, // number of particles in the active group
+				 int group_size, // number of particles in the active group
 				 unsigned int *d_tag)
 {
 	// Group-specific particle index
@@ -472,6 +472,7 @@ __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 // Add real space contribution to particle field
 __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positions
 					Scalar *d_radii, // pointer to particle radii
+					unsigned int *d_radii_tag, 
 					Scalar *d_conductivity, // pointer to particle conductivities
 					Scalar3 *d_dipole, // pointer to particle dipoles
 					Scalar3 *d_extfield, // pointer to particle external field
@@ -485,7 +486,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					int Ntable, // number of entries in the real space table
 					Scalar drtable, // spacing between table entries
 					Scalar4 *d_fieldtable, // pointer to real space field table
-					unsigned int ntypes,
+					unsigned int radii_types,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
 					const unsigned int *d_n_neigh, // pointer to the number of neighbors of each particle 
@@ -510,14 +511,16 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		Scalar lambda_p = d_conductivity[group_tag];
 
 		// Particle radii
-		Scalar ai = d_radii[group_tag];
+		//Scalar ai = d_radii[d_radii_tag[group_tag]];
+		unsigned int radii_tag_i = d_radii_tag[group_tag];
+		Scalar ai = d_radii[radii_tag_i];
 		
 		// Add real space self term
 		E += selfcoeff*Si;
 
 		// If the particle conductivity is finite, add an additional self term
 		if ( isfinite(lambda_p) ) {
-			E += (Scalar(3.0) / (Scalar(4.0) * PI * ai * ai * ai * (lambda_p - Scalar(1.0)))) * Si;
+			E += (3. / 4. * PI * ai * ai * ai * (lambda_p - 1.0)) * Si;
 		}
 
 		// Number of neighbors and location of neighbors in neighbor list for current particle
@@ -527,7 +530,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		// Current particle position and type
 		Scalar4 postypei = __ldg(d_pos+idx);
 		Scalar3 posi = make_scalar3(postypei.x, postypei.y, postypei.z);
-		unsigned int type_i = __scalar_as_int(postypei.w);
+		//unsigned int type_i = __scalar_as_int(postypei.w);
 
 		// Minimum and maximum distances squared for pair calculation
 		Scalar rc2 = rc*rc;
@@ -542,13 +545,16 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 			int neigh_group_idx = d_group_membership_tag[neigh_tag];
 			int neigh_group_tag = d_group_tag[neigh_tag];
 
+			unsigned int radii_tag_j = d_radii_tag[neigh_group_tag];
+			Scalar aj = d_radii[radii_tag_j];
+
 			// Check if neighbor is a member of the active group
 			if ( neigh_group_idx != -1 ) {
 
 				// Position and type of neighbor particle
 				Scalar4 postypej = __ldg(d_pos+neigh_idx);
 				Scalar3 posj = make_scalar3(postypej.x, postypej.y, postypej.z);
-				unsigned int type_j = __scalar_as_int(postypej.w);
+				//unsigned int type_j = __scalar_as_int(postypej.w);
 
 				// Distance vector between current particle and neighbor
         			Scalar3 r = posi - posj;
@@ -570,7 +576,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					// Read the table values closest to the current distance
 					int tableind = __scalar2int_rd( Ntable * (dist-drtable)/(rc-drtable) );	
 
-					unsigned int pair_index = type_i * ntypes + type_j;
+					unsigned int pair_index = radii_tag_i * radii_types + radii_tag_j;
 					unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
 
 					Scalar4 entry = __ldg(d_fieldtable + full_tableind);
@@ -594,7 +600,8 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 }
 
 // Add real space contribution to particle forces
-__global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positions
+__global__ void real_space_force(Scalar4 *d_pos, // pointer to particle positions
+					unsigned int *d_radii_tag,
 					Scalar3 *d_dipole, // pointer to particle dipoles
 					Scalar3 field, // external field
 					Scalar3 gradient, // external field gradient
@@ -609,7 +616,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 					int Ntable, // number of entries in the real space table
 					Scalar drtable, // spacing between table entries
 					Scalar4 *d_forcetable, // pointer to real space force table
-					unsigned int ntypes,
+					unsigned int radii_types,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
 					const unsigned int *d_n_neigh) // pointer to the number of neighbors of each particle 
@@ -624,6 +631,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 		unsigned int idx = d_group_members[group_idx];
 		unsigned int tag = d_tag[idx];
 		int group_tag = d_group_tag[tag];
+		unsigned int radii_tag_i = d_radii_tag[group_tag];
 
 		// Get the wave spcae contribution to the force
   		Scalar4 F4 = d_force[idx];
@@ -645,7 +653,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 		// Current particle position and type
 		Scalar4 postypei = __ldg(d_pos+idx);
 		Scalar3 posi = make_scalar3(postypei.x, postypei.y, postypei.z);
-		unsigned int type_i = __scalar_as_int(postypei.w);
+		//unsigned int type_i = __scalar_as_int(postypei.w);
 
 		// Minimum and maximum distances squared for pair calculation
 		Scalar rc2 = rc*rc;
@@ -659,6 +667,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 			unsigned int neigh_tag = d_tag[neigh_idx];
 			int neigh_group_idx = d_group_membership_tag[neigh_tag];
 			int neigh_group_tag = d_group_tag[neigh_tag];
+			unsigned int radii_tag_j = d_radii_tag[neigh_group_tag];
 
 			// Check if neighbor is a member of the active group
 			if ( neigh_group_idx != -1 ) {
@@ -666,7 +675,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 				// Position and type of neighbor particle
 				Scalar4 postypej = __ldg(d_pos+neigh_idx);
 				Scalar3 posj = make_scalar3(postypej.x, postypej.y, postypej.z);
-				unsigned int type_j = __scalar_as_int(postypej.w);
+				//unsigned int type_j = __scalar_as_int(postypej.w);
 
 				// Distance vector between current particle and neighbor
         			Scalar3 r = posi - posj;
@@ -690,7 +699,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 					// Read the table values closest to the current distance
 					int tableind = __scalar2int_rd( Ntable * (dist-drtable)/(rc-drtable) );	
 
-					unsigned int pair_index = type_i * ntypes + type_j;
+					unsigned int pair_index = radii_tag_i * radii_types + radii_tag_j;
 					unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
 
 					Scalar4 entry = __ldg(d_forcetable + full_tableind);
@@ -716,10 +725,11 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 // Compute the external field at the particle centers as determined by the particle dipoles. (called on the host)
 cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 				Scalar *d_radii, 
+				unsigned int *d_radii_tag, 
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
-				unsigned int group_size, // number of particles in active
+				int group_size, // number of particles in active
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				unsigned int *d_tag, 
@@ -742,7 +752,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
-				unsigned int ntypes,
+				unsigned int radii_types,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
@@ -795,7 +805,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, d_tag, d_group_tag, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
 
 	// Compute the real space contribution to the field
-    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_radii, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh, selfterm); 
+    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_radii, d_radii_tag, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh, selfterm); 
 
     gpuErrchk(cudaPeekAtLastError());
     return cudaSuccess;
@@ -804,10 +814,11 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 // Compute the particle dipoles iteratively using GMRES. (called on the host)
 cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				Scalar *d_radii,
+				unsigned int *d_radii_tag, 
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
-				unsigned int group_size, // number of particles in active
+				int group_size, // number of particles in active
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				unsigned int *d_tag, 
@@ -831,13 +842,13 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
-				unsigned int ntypes,
+				unsigned int radii_types,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
 {
 	// Create the matrix-free potential linear operator
-	cuspPotential M(d_pos, d_radii, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
+	cuspPotential M(d_pos, d_radii, d_radii_tag, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh);
 
 	// Allocate storage for the solution vector (S) and output of the matrix/vector multiply (E0) on the GPU
 	cusp::array1d<float, cusp::device_memory> S(M.num_rows, 0);
@@ -866,6 +877,7 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 // Compute particle forces. (called on the host)
 cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisitons
 				Scalar *d_radii, 
+				unsigned int *d_radii_tag, 
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
@@ -873,7 +885,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 				Scalar3 gradient, // external field gradient
 				Scalar4 *d_force, // pointer to particle forces
 				unsigned int Ntotal, // total number of particles
-				unsigned int group_size, // number of particles in active group
+				int group_size, // number of particles in active group
 				int *d_group_membership_tag, // pointer to particle membership and index in active group 
 				unsigned int *d_group_members, // pointer to indices of particles in active group
 				int *d_group_tag, 
@@ -898,7 +910,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
 				Scalar4 *d_forcetable, // pointer to real space force coefficient table
-				unsigned int ntypes,
+				unsigned int radii_types,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh, // pointer to number of neighbors of each particle
@@ -932,11 +944,11 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 	// Now the tables are larger: (Ntable + 1) * ntypes * ntypes
     fieldtable_tex.normalized = false;
     fieldtable_tex.filterMode = cudaFilterModePoint; 
-    cudaBindTexture(0, fieldtable_tex, d_fieldtable, sizeof(Scalar4) * (Ntable+1) * ntypes * ntypes);
+    cudaBindTexture(0, fieldtable_tex, d_fieldtable, sizeof(Scalar4) * (Ntable+1) * radii_types * radii_types);
 
 	forcetable_tex.normalized = false;
     forcetable_tex.filterMode = cudaFilterModePoint;
-    cudaBindTexture(0, forcetable_tex, d_forcetable, sizeof(Scalar4) * (Ntable+1) * ntypes * ntypes);
+    cudaBindTexture(0, forcetable_tex, d_forcetable, sizeof(Scalar4) * (Ntable+1) * radii_types * radii_types);
 
     pos_tex.normalized = false;
     pos_tex.filterMode = cudaFilterModePoint;
@@ -948,7 +960,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 
 	// Compute the particle dipoles.  If constantdipoleflag = 1, this step is skipped and the particles keep their constant dipole model values that were precomputed on the host.
 	if (constantdipoleflag != 1) {
-		ComputeDipole( d_pos, d_radii, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
+		ComputeDipole( d_pos, d_radii, d_radii_tag, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, errortol, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh);
 	}
 
     // Reset the grid values to zero
@@ -976,7 +988,7 @@ cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisiton
 	contractforce<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_force, group_size, d_group_members, d_tag, d_group_tag, box, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);   
 
 	// Compute the real space contribution to the force
-    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_dipole, field, gradient, d_force, group_size,  d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_forcetable, ntypes, d_nlist, d_head_list, d_n_neigh);
+    real_space_force<<<Nblocks3, Nthreads3>>>(d_pos, d_radii_tag, d_dipole, field, gradient, d_force, group_size,  d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_forcetable, radii_types, d_nlist, d_head_list, d_n_neigh);
 
 	// Unbind the textured memory
 	cudaUnbindTexture(fieldtable_tex);

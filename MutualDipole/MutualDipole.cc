@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <cmath>
 #include <stdexcept>
+#include <set>
 
 #define PI 3.1415926535897932
 
@@ -22,7 +23,8 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 			  	std::shared_ptr<NeighborList> nlist, // neighbor list
 				std::vector<int> &group_tag, 
 				std::vector<float> &conductivity, // particle conductivities
-				std::vector<float> &radii, // particle radius corresponding to group tag
+				std::vector<float> &radii, // particle radius corresponding to radii tag
+				std::vector<unsigned int> &radii_tag,
 			  	std::vector<float> &field, // imposed external field
 				std::vector<float> &gradient, // imposed external field gradient
 			  	Scalar xi, // Ewald splitting parameter
@@ -80,6 +82,14 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 	for (unsigned int i = 0; i < m_group_size; ++i ){
 		h_radii.data[i] = radii[i];
+	}
+
+	// radii tag
+	GPUArray<unsigned int> n_radii_tag(m_group_size, m_exec_conf);
+	m_radii_tag.swap(n_radii_tag);
+	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
+	for (unsigned int i = 0; i < m_group_size; ++i ){
+		h_radii_tag.data[i] = radii_tag[i];
 	}
 }
 
@@ -253,17 +263,26 @@ void MutualDipole::SetParams() {
 
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
+	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
+
+	// Count how many unique radii_tag values exist
+	std::set<unsigned int> unique_radii_tags;
+	for (unsigned int i = 0; i < m_group_size; ++i)
+	{
+		unique_radii_tags.insert(h_radii_tag.data[i]);
+	}
+	m_radii_types = static_cast<unsigned int>(unique_radii_tags.size());
 
 	const unsigned int table_width = m_Ntable + 1;
-	const unsigned int table_size = table_width * n_types * n_types;
+	const unsigned int table_size = table_width * m_radii_types * m_radii_types;
 
 	// initialize the field real space table
-	GPUArray<Scalar4> n_fieldtable(table_size, m_exec_conf); // GPUArray<Scalar4> n_fieldtable((m_Ntable + 1) * n_types * n_types, m_exec_conf);
+	GPUArray<Scalar4> n_fieldtable(table_size, m_exec_conf); // GPUArray<Scalar4> n_fieldtable((m_Ntable + 1) * m_radii_types * m_radii_types, m_exec_conf);
 	m_fieldtable.swap(n_fieldtable);
 	ArrayHandle<Scalar4> h_fieldtable(m_fieldtable, access_location::host, access_mode::readwrite);
 
 	// initialize the force real space table
-	GPUArray<Scalar4> n_forcetable(table_size, m_exec_conf); // GPUArray<Scalar4> n_forcetable((m_Ntable + 1) * n_types * n_types, m_exec_conf);
+	GPUArray<Scalar4> n_forcetable(table_size, m_exec_conf); // GPUArray<Scalar4> n_forcetable((m_Ntable + 1) * m_radii_types * m_radii_types, m_exec_conf);
 	m_forcetable.swap(n_forcetable);
 	ArrayHandle<Scalar4> h_forcetable(m_forcetable, access_location::host, access_mode::readwrite);
 
@@ -278,16 +297,16 @@ void MutualDipole::SetParams() {
 	// Fill the real space tables
 	// Need to add a doule loop for a_i and a_j
 	// User need to provide radii and the types
-	// Looping through radius type
-	// a_i and a_j come from the user-provided radii vector matching group_tag
+	// Looping through radii tag
+	// a_i and a_j come from the user-provided radii vector matching radii_tag
 
-	for (unsigned int i = 0; i < m_group_size; ++i)
+	for (unsigned int i = 0; i < m_radii_types; ++i)
 	{
-		for (unsigned int j = 0; j < m_group_size; ++j)
+		for (unsigned int j = 0; j < m_radii_types; ++j)
 		{
-			const double a_i = double(h_radii.data[i]);
-			const double a_j = double(h_radii.data[j]);
-			const unsigned int pair_offset = (i * m_group_size + j) * table_width;
+			const double a_i = double(h_radii.data[h_radii_tag[i]]);
+			const double a_j = double(h_radii.data[h_radii_tag[j]]);
+			const unsigned int pair_offset = (i * m_ntypes + j) * table_width;
 
 			double ai2 = pow(a_i,2);
 			double ai3 = pow(a_i,3);
@@ -600,6 +619,7 @@ void MutualDipole::SetParams() {
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
+	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
 
 	// Fill the external field and dipole arrays
 	for( unsigned int ii = 0; ii < m_group_size; ++ii){
@@ -657,9 +677,11 @@ void MutualDipole::UpdateField(std::vector<float> &field,
 
 // Update simulation parameters.  Recomputes tables on the CPU.
 void MutualDipole::UpdateParameters(std::vector<int> &group_tag,
+		      		     std::vector<float> &conductivity,
+						 std::vector<float> &radii,
+						 std::vector<unsigned int> &radii_tag,
 						 std::vector<float> &field,
 				     	 std::vector<float> &gradient,
-		      		     std::vector<float> &conductivity,
 		      		     std::string fileprefix,
 		      		     int period,
 				     	 int constantdipoleflag,
@@ -679,6 +701,8 @@ void MutualDipole::UpdateParameters(std::vector<int> &group_tag,
 	ArrayHandle<Scalar3> h_extfield(m_extfield, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar3> h_dipole(m_dipole, access_location::host, access_mode::readwrite);
+	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
+	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
 
 	// Update arrays
 	for (unsigned int i = 0; i < m_group_size; ++i ){
@@ -726,6 +750,9 @@ void MutualDipole::computeForces(unsigned int timestep) {
 
 	// particle radii
 	ArrayHandle<Scalar> d_radii(m_radii, access_location::device, access_mode::read);
+
+	// particle radii tag
+	ArrayHandle<unsigned int> d_radii_tag(m_radii_tag, access_location::device, access_mode::read);
 
 	// particle conductivities
 	ArrayHandle<Scalar> d_conductivity(m_conductivity, access_location::device, access_mode::readwrite);
@@ -784,6 +811,7 @@ void MutualDipole::computeForces(unsigned int timestep) {
 	// Pass n_types/table_width into gpu_ComputeForce when updating that signature.
 	gpu_ComputeForce(d_pos.data,
 			d_radii.data,
+			d_radii_tag.data,
 			d_conductivity.data,
 			d_dipole.data,
 			d_extfield.data,
@@ -821,7 +849,7 @@ void MutualDipole::computeForces(unsigned int timestep) {
 			m_drtable,
 			d_fieldtable.data,
 			d_forcetable.data,
-			m_ntypes, 
+			m_radii_types, 
 
 			d_nlist.data,
 			d_head_list.data,
@@ -943,9 +971,10 @@ void export_MutualDipole(pybind11::module& m)
 		.def(pybind11::init< std::shared_ptr<SystemDefinition>, 
 							 std::shared_ptr<ParticleGroup>, 
 							 std::shared_ptr<NeighborList>, 
-							 std::vector<int>&, 
+							 std::vector<int>&, 	// group tag
 							 std::vector<float>&, 	// conductivity
 							 std::vector<float>&, 	// radii
+							 std::vector<int>&, 	// radii tag
 							 std::vector<float>&, 	// field
 							 std::vector<float>&, 	// gradient
 							 Scalar, 
