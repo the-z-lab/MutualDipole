@@ -983,7 +983,7 @@ void export_MutualDipole(pybind11::module& m)
 							 std::vector<int>&, 	// group tag
 							 std::vector<float>&, 	// conductivity
 							 std::vector<float>&, 	// radii
-							 std::vector<int>&, 	// radii tag
+							 std::vector<unsigned int>&, 	// radii tag
 							 std::vector<float>&, 	// field
 							 std::vector<float>&, 	// gradient
 							 Scalar, 
