@@ -780,6 +780,7 @@ void MutualDipole::computeForces(unsigned int timestep) {
 	// table_idx = (type_i * n_types + type_j) * (m_Ntable + 1) + r_idx.
 	// Pass n_types/table_width into gpu_ComputeForce when updating that signature.
 	gpu_ComputeForce(d_pos.data,
+			d_radii.data,
 			d_conductivity.data,
 			d_dipole.data,
 			d_extfield.data,

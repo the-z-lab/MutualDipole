@@ -511,13 +511,14 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 
 		// Particle radii
 		Scalar ai = d_radii[group_tag];
+		Scalar ai3 = pow(ai,3);
 		
 		// Add real space self term
 		E += selfcoeff*Si;
 
 		// If the particle conductivity is finite, add an additional self term
 		if ( isfinite(lambda_p) ) {
-			E += 3.0/(4.0*PI*ai**3*(lambda_p - 1.0))*Si;
+			E += 3.0/(4.0*PI*ai3*(lambda_p - 1.0))*Si;
 		}
 
 		// Number of neighbors and location of neighbors in neighbor list for current particle
@@ -865,6 +866,7 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 
 // Compute particle forces. (called on the host)
 cudaError_t gpu_ComputeForce(   Scalar4 *d_pos, // pointer to particle posisitons
+				Scalar *d_radii, 
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers

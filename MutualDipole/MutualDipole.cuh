@@ -18,6 +18,7 @@ cudaError_t gpu_ZeroForce(unsigned int Ntotal, // total number of particles
 			  unsigned int block_size); // number of threads per block
 
 cudaError_t gpu_ComputeForce(Scalar4 *d_pos, // pointer to particle positions
+				 Scalar *d_radii, 
 			     Scalar *d_conductivity, // pointer to particle conductivities 
 			     Scalar3 *d_dipole, // pointer to particle dipoles
 			     Scalar3 *d_extfield, // pointer to external field evaluated at particle centers
