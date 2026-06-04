@@ -511,14 +511,13 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 
 		// Particle radii
 		Scalar ai = d_radii[group_tag];
-		Scalar ai3 = pow(ai,3);
 		
 		// Add real space self term
 		E += selfcoeff*Si;
 
 		// If the particle conductivity is finite, add an additional self term
 		if ( isfinite(lambda_p) ) {
-			E += 3.0/(4.0*PI*ai3*(lambda_p - 1.0))*Si;
+			E += (Scalar(3.0) / (Scalar(4.0) * PI * ai * ai * ai * (lambda_p - Scalar(1.0)))) * Si;
 		}
 
 		// Number of neighbors and location of neighbors in neighbor list for current particle
