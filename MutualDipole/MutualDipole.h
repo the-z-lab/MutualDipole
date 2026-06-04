@@ -69,23 +69,23 @@ class MutualDipole : public ForceCompute {
     protected:
 
 	std::shared_ptr<ParticleGroup> m_group;		// active group of particles on which to perform the calculation
+	std::shared_ptr<NeighborList> m_nlist;    	// neighbor list
+
+	int m_Ntotal;					// total number of particles
+	int m_group_size;				// number of particles in the active group
+
+	GPUArray<int> m_group_tag;
+	GPUArray<int> m_group_membership_tag;		// active group membership list
+	GPUArray<Scalar> m_conductivity;		// particle conductivities
+	GPUArray<Scalar> m_radii;			// particle radii by type
+	GPUArray<unsigned int> m_radii_tag;
+	unsigned int m_radii_types;			// number of particle radii types
 
 	Scalar3 m_field;				// applied external field
 	Scalar3 m_gradient;				// applied field gradient
 
 	GPUArray<Scalar3> m_extfield;			// external field at particle positions as computed by particle dipoles
 	GPUArray<Scalar3> m_dipole;			// particle dipoles
-	GPUArray<Scalar> m_conductivity;		// particle conductivities
-
-	GPUArray<Scalar> m_radii;			// particle radii by type
-	GPUArray<unsigned int> m_radii_tag;
-	unsigned int m_radii_types;			// number of particle radii types
-
-	int m_Ntotal;					// total number of particles
-	int m_group_size;				// number of particles in the active group
-
-	GPUArray<int> m_group_membership_tag;		// active group membership list
-	GPUArray<int> m_group_tag;
 
 	Scalar m_xi;               			// Ewald splitting parameter
 	Scalar m_errortol;				// error tolerance
@@ -112,8 +112,6 @@ class MutualDipole : public ForceCompute {
 
 	GPUArray<Scalar4> m_fieldtable;                 // real space table for the field 
 	GPUArray<Scalar4> m_forcetable;			// real space table for the force
-
-	std::shared_ptr<NeighborList> m_nlist;    	// neighbor list
 
 	std::string m_fileprefix;			// output file prefix
 	int m_period;					// frequency with which to write output files
