@@ -264,7 +264,7 @@ void MutualDipole::SetParams() {
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
-	m_radii_types = static_cast<unsigned int>(h_radii.size());
+	m_radii_types = unsigned int(h_radii.size());
 
 	const unsigned int table_width = m_Ntable + 1;
 	const unsigned int table_size = table_width * m_radii_types * m_radii_types;
@@ -297,13 +297,8 @@ void MutualDipole::SetParams() {
 	{
 		for (unsigned int j = 0; j < m_radii_types; ++j)
 		{
-			//const double a_i = double(h_radii.data[h_radii_tag[i]]);
-			//const double a_j = double(h_radii.data[h_radii_tag[j]]);
-			unsigned int radii_tag_i = h_radii_tag.data[i];
-			unsigned int radii_tag_j = h_radii_tag.data[j];
-
-			const double a_i = double(h_radii.data[radii_tag_i]);
-			const double a_j = double(h_radii.data[radii_tag_j]);
+			const double a_i = double(h_radii.data[i]);
+			const double a_j = double(h_radii.data[j]);
 
 			const unsigned int pair_offset = (i * m_radii_types + j) * table_width;
 
