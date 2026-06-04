@@ -22,7 +22,7 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 			  	std::shared_ptr<NeighborList> nlist, // neighbor list
 				std::vector<int> &group_tag, 
 				std::vector<float> &conductivity, // particle conductivities
-				std::vector<float> &radii, // particle radius by type id
+				std::vector<float> &radii, // particle radius corresponding to group tag
 			  	std::vector<float> &field, // imposed external field
 				std::vector<float> &gradient, // imposed external field gradient
 			  	Scalar xi, // Ewald splitting parameter
@@ -58,48 +58,10 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 	m_group_size = m_group->getNumMembers();
 	m_Ntotal = m_pdata->getN();
 
-	// Get the particle radii by HOOMD particle type
-	m_ntypes = m_pdata->getNTypes(); 	// get number of particle types
-
-	if (radii.size() != m_ntypes)
-	{
-		m_exec_conf->msg->error()
-			<< "MutualDipole: radii must have one value per HOOMD particle type. "
-			<< "Expected " << m_ntypes
-			<< ", got " << radii.size()
-			<< std::endl;
-
-		throw std::runtime_error("Invalid radii input");
-	}
-
-	GPUArray<Scalar> n_radii(m_ntypes, m_exec_conf);
-	m_radii.swap(n_radii);
-
-	ArrayHandle<Scalar> h_radii(m_radii,
-								access_location::host,
-								access_mode::readwrite);
-
-	for (unsigned int type_id = 0; type_id < m_ntypes; ++type_id)
-	{
-		if (radii[type_id] <= 0.0)
-		{
-			m_exec_conf->msg->error()
-				<< "MutualDipole: radius for type id "
-				<< type_id
-				<< " must be positive. Got "
-				<< radii[type_id]
-				<< std::endl;
-
-			throw std::runtime_error("Invalid particle radius");
-		}
-
-		h_radii.data[type_id] = Scalar(radii[type_id]);
-	}
-
 	// group_tag
 	GPUArray<int> n_group_tag(m_Ntotal, m_exec_conf);
 	m_group_tag.swap(n_group_tag);
-	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::readwrite);
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	for (unsigned int i = 0; i < m_Ntotal; ++i ){
 		h_group_tag.data[i] = group_tag[i];
 	}
@@ -112,6 +74,13 @@ MutualDipole::MutualDipole(std::shared_ptr<SystemDefinition> sysdef, // system t
 		h_conductivity.data[i] = conductivity[i];
 	}
 
+	// Extract the particle radii
+	GPUArray<Scalar> n_radii(m_group_size, m_exec_conf);
+	m_radii.swap(n_radii);
+	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
+	for (unsigned int i = 0; i < m_group_size; ++i ){
+		h_radii.data[i] = radii[i];
+	}
 }
 
 // Destructor for the MutualDipole class
@@ -282,8 +251,7 @@ void MutualDipole::SetParams() {
 	m_drtable = double(0.001); // table spacing
 	m_Ntable = m_rc/m_drtable - 1; // number of entries in the table
 
-	const unsigned int n_types = m_ntypes;
-
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 
 	const unsigned int table_width = m_Ntable + 1;
@@ -311,20 +279,15 @@ void MutualDipole::SetParams() {
 	// Need to add a doule loop for a_i and a_j
 	// User need to provide radii and the types
 	// Looping through radius type
-	// a_i and a_j come from the user-provided radii vector through HOOMD type ids.
+	// a_i and a_j come from the user-provided radii vector matching group_tag
 
-	// Logic:
-	// m_radii[type_id] = radius of that particle type
-	// a_i = m_radii[type_i]
-	// a_j = m_radii[type_j]
-
-	for (unsigned int type_i = 0; type_i < n_types; ++type_i)
+	for (unsigned int i = 0; i < m_group_size; ++i)
 	{
-		for (unsigned int type_j = 0; type_j < n_types; ++type_j)
+		for (unsigned int j = 0; j < m_group_size; ++j)
 		{
-			const double a_i = double(h_radii.data[type_i]);
-			const double a_j = double(h_radii.data[type_j]);
-			const unsigned int pair_offset = (type_i * n_types + type_j) * table_width;
+			const double a_i = double(h_radii.data[i]);
+			const double a_j = double(h_radii.data[j]);
+			const unsigned int pair_offset = (i * m_group_size + j) * table_width;
 
 			double ai2 = pow(a_i,2);
 			double ai3 = pow(a_i,3);
@@ -633,10 +596,10 @@ void MutualDipole::SetParams() {
 	m_extfield.swap(n_extfield);
 	ArrayHandle<Scalar3> h_extfield(m_extfield, access_location::host, access_mode::readwrite);
 
-	// Get access to particle conductivities
-	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::read);
-
+	// Get access to particle group tag, conductivities and radii
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
+	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
+	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 
 	// Fill the external field and dipole arrays
 	for( unsigned int ii = 0; ii < m_group_size; ++ii){
@@ -712,7 +675,7 @@ void MutualDipole::UpdateParameters(std::vector<int> &group_tag,
 	m_t0 = t0;
 
 	// Get access to particle external field, conductivity, and dipole arrays
-	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::readwrite);
+	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar3> h_extfield(m_extfield, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
 	ArrayHandle<Scalar3> h_dipole(m_dipole, access_location::host, access_mode::readwrite);

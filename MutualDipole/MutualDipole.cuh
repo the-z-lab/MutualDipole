@@ -58,6 +58,7 @@ cudaError_t gpu_ComputeForce(Scalar4 *d_pos, // pointer to particle positions
 
 // Kernel called by PotentialWrapper.cuh
 cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle posisitons
+			 Scalar *d_radii, 
 			 Scalar *d_conductivity, // pointer to particle conductivities
 			 Scalar3 *d_dipole, // pointer to particle dipoles
 			 Scalar3 *d_extfield, // pointer to external field at particle centers

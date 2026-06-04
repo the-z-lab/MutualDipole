@@ -471,6 +471,7 @@ __global__ void contractforce(	Scalar4 *d_pos,  // pointer to particle positions
 
 // Add real space contribution to particle field
 __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positions
+					Scalar *d_radii, // pointer to particle radii
 					Scalar *d_conductivity, // pointer to particle conductivities
 					Scalar3 *d_dipole, // pointer to particle dipoles
 					Scalar3 *d_extfield, // pointer to particle external field
@@ -484,7 +485,6 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					int Ntable, // number of entries in the real space table
 					Scalar drtable, // spacing between table entries
 					Scalar4 *d_fieldtable, // pointer to real space field table
-					unsigned int ntypes,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
 					const unsigned int *d_n_neigh, // pointer to the number of neighbors of each particle 
@@ -507,15 +507,17 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		// Dipole moment and conductivity of current particle
 		Scalar3 Si = d_dipole[group_tag];
 		Scalar lambda_p = d_conductivity[group_tag];
+
+		// Particle radii
+		Scalar radii = d_radii[group_tag];
 		
 		// Add real space self term
 		E += selfcoeff*Si;
 
 		// If the particle conductivity is finite, add an additional self term
 		if ( isfinite(lambda_p) ) {
-			E += 3.0/(4.0*PI*(lambda_p - 1.0))*Si;
+			E += 3.0/(4.0*PI*ai**3*(lambda_p - 1.0))*Si;
 		}
-
 
 		// Number of neighbors and location of neighbors in neighbor list for current particle
 		unsigned int n_neigh = d_n_neigh[idx];
@@ -712,6 +714,7 @@ __global__ void real_space_force( 	Scalar4 *d_pos, // pointer to particle positi
 
 // Compute the external field at the particle centers as determined by the particle dipoles. (called on the host)
 cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
+				Scalar *d_radii, 
 				Scalar *d_conductivity, // pointer to particle conductivities
 				Scalar3 *d_dipole, // pointer to particle dipoles
 				Scalar3 *d_extfield, // pointer to external field at particle centers
@@ -738,7 +741,6 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
-				unsigned int ntypes,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
@@ -791,7 +793,7 @@ cudaError_t ComputeField(       Scalar4 *d_pos, // pointer to particle positions
 	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, d_tag, d_group_tag, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
 
 	// Compute the real space contribution to the field
-    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh, selfterm); 
+    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_radii, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh, selfterm); 
 
     gpuErrchk(cudaPeekAtLastError());
     return cudaSuccess;
@@ -826,13 +828,12 @@ cudaError_t ComputeDipole(	Scalar4 *d_pos, // pointer to particle posisitons
 				int Ntable, // number of entries in the real space table
 				Scalar drtable, // spacing between table entries
 				Scalar4 *d_fieldtable, // pointer to real space field table
-				unsigned int ntypes,
 				const unsigned int *d_nlist, // pointer to neighbor list
 				const unsigned int *d_head_list, // pointer to head list used to access entries in the neighbor list
 				const unsigned int *d_n_neigh) // pointer to number of neighbors of each particle
 {
 	// Create the matrix-free potential linear operator
-	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
+	cuspPotential M(d_pos, d_conductivity, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, d_nlist, d_head_list, d_n_neigh);
 
 	// Allocate storage for the solution vector (S) and output of the matrix/vector multiply (E0) on the GPU
 	cusp::array1d<float, cusp::device_memory> S(M.num_rows, 0);

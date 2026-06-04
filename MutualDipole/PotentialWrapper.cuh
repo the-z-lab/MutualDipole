@@ -23,6 +23,7 @@ public:
     typedef cusp::linear_operator<float,cusp::device_memory> super;  // size of the linear operator
 
     Scalar4 *d_pos;  // pointer to particle positions
+    Scalar *d_radii;
     Scalar *d_conductivity;  // pointer to particle conductivity
 
     unsigned int group_size;  // number of active particles
@@ -60,6 +61,7 @@ public:
 
     // constructor
     cuspPotential(Scalar4 *d_pos,
+          Scalar *d_radii, 
 		  Scalar *d_conductivity,
 		  unsigned int group_size,
 		  int *d_group_membership_tag,
@@ -90,6 +92,7 @@ public:
 		  const unsigned int *d_n_neigh)
           : super(3*group_size,3*group_size), 
 		  d_pos(d_pos),
+          d_radii(d_radii),
 		  d_conductivity(d_conductivity),
           group_size(group_size),
 		  d_group_membership_tag(d_group_membership_tag),
@@ -134,7 +137,7 @@ public:
 	    Scalar3 *E0_ptr2 = (Scalar3 *) &E0_ptr[0];
 
         // Compute E0 = M*S
-	    ComputeField( d_pos, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
+	    ComputeField( d_pos, d_radii, d_conductivity, S_ptr2, E0_ptr2, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, block_size, xi, eta, rc, Nx, Ny, Nz, gridh, P, d_gridk, d_gridX, d_gridY, d_gridZ, plan, Ntable, drtable, d_fieldtable, ntypes, d_nlist, d_head_list, d_n_neigh);
 
     }
 };
