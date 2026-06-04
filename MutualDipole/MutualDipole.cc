@@ -306,8 +306,9 @@ void MutualDipole::SetParams() {
 		{
 			//const double a_i = double(h_radii.data[h_radii_tag[i]]);
 			//const double a_j = double(h_radii.data[h_radii_tag[j]]);
-			unsigned int radii_tag_i = h_radii_tag[i];
-			unsigned int radii_tag_j = h_radii_tag[j];
+			unsigned int radii_tag_i = h_radii_tag.data[i];
+			unsigned int radii_tag_j = h_radii_tag.data[j];
+
 			const double a_i = double(h_radii.data[radii_tag_i]);
 			const double a_j = double(h_radii.data[radii_tag_j]);
 
