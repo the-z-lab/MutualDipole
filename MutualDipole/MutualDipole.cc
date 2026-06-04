@@ -264,14 +264,7 @@ void MutualDipole::SetParams() {
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
 	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
-
-	// Count how many unique radii_tag values exist
-	std::set<unsigned int> unique_radii_tags;
-	for (unsigned int i = 0; i < m_group_size; ++i)
-	{
-		unique_radii_tags.insert(h_radii_tag.data[i]);
-	}
-	m_radii_types = static_cast<unsigned int>(unique_radii_tags.size());
+	m_radii_types = static_cast<unsigned int>(h_radii.size());
 
 	const unsigned int table_width = m_Ntable + 1;
 	const unsigned int table_size = table_width * m_radii_types * m_radii_types;
