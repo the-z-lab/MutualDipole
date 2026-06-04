@@ -55,7 +55,6 @@ class MutualDipole : public ForceCompute {
 						  std::vector<unsigned int> &radii_tag,
 				  		  std::vector<float> &field,
 			      		  std::vector<float> &gradient,
-			      		  std::vector<float> &conductivity,
 			      		  std::string fileprefix,
 			      		  int period,
 			      		  int constantdipoleflag,
