@@ -546,7 +546,7 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 			int neigh_group_tag = d_group_tag[neigh_tag];
 
 			unsigned int radii_tag_j = d_radii_tag[neigh_group_tag];
-			Scalar aj = d_radii[radii_tag_j];
+			//Scalar aj = d_radii[radii_tag_j];
 
 			// Check if neighbor is a member of the active group
 			if ( neigh_group_idx != -1 ) {
