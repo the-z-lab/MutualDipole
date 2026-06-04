@@ -304,9 +304,14 @@ void MutualDipole::SetParams() {
 	{
 		for (unsigned int j = 0; j < m_radii_types; ++j)
 		{
-			const double a_i = double(h_radii.data[h_radii_tag[i]]);
-			const double a_j = double(h_radii.data[h_radii_tag[j]]);
-			const unsigned int pair_offset = (i * m_ntypes + j) * table_width;
+			//const double a_i = double(h_radii.data[h_radii_tag[i]]);
+			//const double a_j = double(h_radii.data[h_radii_tag[j]]);
+			unsigned int radii_tag_i = h_radii_tag[i];
+			unsigned int radii_tag_j = h_radii_tag[j];
+			const double a_i = double(h_radii.data[radii_tag_i]);
+			const double a_j = double(h_radii.data[radii_tag_j]);
+
+			const unsigned int pair_offset = (i * m_radii_types + j) * table_width;
 
 			double ai2 = pow(a_i,2);
 			double ai3 = pow(a_i,3);
@@ -615,11 +620,8 @@ void MutualDipole::SetParams() {
 	m_extfield.swap(n_extfield);
 	ArrayHandle<Scalar3> h_extfield(m_extfield, access_location::host, access_mode::readwrite);
 
-	// Get access to particle group tag, conductivities and radii
-	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
+	// Get access to particle conductivities
 	ArrayHandle<Scalar> h_conductivity(m_conductivity, access_location::host, access_mode::readwrite);
-	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
-	ArrayHandle<unsigned int> h_radii_tag(m_radii_tag, access_location::host, access_mode::read);
 
 	// Fill the external field and dipole arrays
 	for( unsigned int ii = 0; ii < m_group_size; ++ii){
