@@ -71,7 +71,7 @@ class MutualDipole : public ForceCompute {
 	std::shared_ptr<ParticleGroup> m_group;		// active group of particles on which to perform the calculation
 	std::shared_ptr<NeighborList> m_nlist;    	// neighbor list
 
-	int m_Ntotal;					// total number of particles
+	unsigned int m_Ntotal;					// total number of particles
 	unsigned int m_group_size;				// number of particles in the active group
 
 	GPUArray<int> m_group_tag;
