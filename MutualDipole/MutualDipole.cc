@@ -361,7 +361,7 @@ void MutualDipole::SetParams() {
 			double force_8_rr = 0.0;
 
 			// Particle separation corresponding to current table entry
-			double dist = (i + 1) * m_drtable;		
+			double dist = (table_i + 1) * m_drtable;		
 			double dist2 = pow(dist,2);
 			double dist3 = pow(dist,3);
 			double dist4 = pow(dist,4);
@@ -579,8 +579,8 @@ void MutualDipole::SetParams() {
 
 		for (unsigned int table_i = 0; table_i < m_Ntable; table_i++)
 		{
-			const unsigned int table_idx = pair_offset + i;
-			const unsigned int table_idx_next = pair_offset + i + 1;
+			const unsigned int table_idx = pair_offset + table_i;
+			const unsigned int table_idx_next = pair_offset + table_i + 1;
 			h_fieldtable.data[table_idx].z = h_fieldtable.data[table_idx_next].x;
 			h_fieldtable.data[table_idx].w = h_fieldtable.data[table_idx_next].y;
 			h_forcetable.data[table_idx].z = h_forcetable.data[table_idx_next].x;
