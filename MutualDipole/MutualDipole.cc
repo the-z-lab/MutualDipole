@@ -259,7 +259,11 @@ void MutualDipole::SetParams() {
 
 	// Parameters for the real space table
 	m_drtable = double(0.001); // table spacing
-	m_Ntable = m_rc/m_drtable - 1; // number of entries in the table
+
+	// m_Ntable is now the largest nonzero table index.
+	// table index 0 is reserved for r -> 0 selfterm.
+	// table indices 1 ... m_Ntable correspond to r = dr, 2dr, ..., rc.
+	m_Ntable = static_cast<unsigned int>(floor(m_rc / m_drtable)); // number of entries in the table
 
 	ArrayHandle<int> h_group_tag(m_group_tag, access_location::host, access_mode::read);
 	ArrayHandle<Scalar> h_radii(m_radii, access_location::host, access_mode::read);
@@ -319,7 +323,47 @@ void MutualDipole::SetParams() {
 			double aimaj3 = pow(aimaj,3);
 			double aimaj4 = pow(aimaj,4);
 
-		for (unsigned int table_i = 0; table_i <= m_Ntable; table_i++)
+			// ---------------------------------------------------------------------
+			// r -> 0 selfterm, equivalent to MATLAB Ep_perp(1, lin).
+			// MATLAB also sets Ep_para(1, lin) = Ep_perp(1, lin).
+			// Store this at table index 0.
+			// ---------------------------------------------------------------------
+			{
+				const unsigned int self_idx = pair_offset;
+
+				const double selfterm =
+					1.0 / (16.0 * pow(PI, 1.5) * ai3 * aj3 * xi3) *
+					(
+						(1.0 - 2.0 * ai2 * xi2 + 2.0 * a_i * a_j * xi2 - 2.0 * aj2 * xi2)
+							* exp(-aipaj2 * xi2)
+						+
+						(-1.0 + 2.0 * ai2 * xi2 + 2.0 * a_i * a_j * xi2 + 2.0 * aj2 * xi2)
+							* exp(-aimaj2 * xi2)
+					)
+					+
+					1.0 / (8.0 * PI * ai3 * aj3) *
+					(
+						(ai3 - aj3) * erf(aimaj * xi)
+						-
+						(ai3 + aj3) * erf(aipaj * xi)
+					)
+					+
+					std::min(ai3, aj3) / (4.0 * PI * ai3 * aj3);
+
+				h_fieldtable.data[self_idx].x = Scalar(selfterm); // Ep_perp r -> 0
+				h_fieldtable.data[self_idx].y = Scalar(selfterm); // Ep_para r -> 0, same limit
+
+				// These are not used for the selfterm, but set them safely.
+				h_fieldtable.data[self_idx].z = Scalar(0.0);
+				h_fieldtable.data[self_idx].w = Scalar(0.0);
+
+				h_forcetable.data[self_idx] = make_scalar4(0.0, 0.0, 0.0, 0.0);
+			}
+
+		// Fill nonzero-distance entries.
+		// table_i = 1 means r = drtable.
+		// table_i = m_Ntable means r approximately rc.
+		for (unsigned int table_i = 1; table_i <= m_Ntable; table_i++)
 		{
 			const unsigned int table_idx = pair_offset + table_i;
 			const unsigned int table_idx_next = pair_offset + table_i + 1;
@@ -361,7 +405,7 @@ void MutualDipole::SetParams() {
 			double force_8_rr = 0.0;
 
 			// Particle separation corresponding to current table entry
-			double dist = (table_i + 1) * m_drtable;		
+			double dist = table_i * m_drtable;
 			double dist2 = pow(dist,2);
 			double dist3 = pow(dist,3);
 			double dist4 = pow(dist,4);
@@ -428,7 +472,7 @@ void MutualDipole::SetParams() {
 
 			if (dist < a_i + a_j && dist >= a_i - a_j && dist >= a_j - a_i) {
 
-				regpoly = (aipaj-dist3) / (128.0*PI*ai3*aj3*dist3) * (-dist3-3.0*aipaj*dist2 + 3.0*(ai2-4.0*a_i*a_j+aj2)*dist + ai3 - 3.0*ai2*a_j - 3.0*a_i*aj2 + aj3);
+				regpoly = pow(aipaj-dist,3) / (128.0*PI*ai3*aj3*dist3) * (-dist3-3.0*aipaj*dist2 + 3.0*(ai2-4.0*a_i*a_j+aj2)*dist + ai3 - 3.0*ai2*a_j - 3.0*a_i*aj2 + aj3);
 
 			}
 			else if (dist < a_j - a_i && dist > a_i - a_j) {
@@ -446,7 +490,7 @@ void MutualDipole::SetParams() {
 			h_fieldtable.data[table_idx].x = Scalar(field_1_Irr*exp_1 + field_2_Irr*exp_2 + field_3_Irr*exp_3 + field_4_Irr*exp_4 + field_5_Irr*erf_5 + field_6_Irr*erf_6 + field_7_Irr*erf_7 + field_8_Irr*erf_8 + regpoly);
 
 			// Handle the r->0 separatly
-			h_fieldtable.data[pair_offset].x = Scalar(1.0/(16.0*pow(PI,1.5)*ai3*aj3*xi3)*((1.0-2.0*ai2*xi2+2.0*a_i*a_j*xi2-2.0*aj2*xi2)*exp(-aipaj2*xi2) + (-1.0+2.0*ai2*xi2+2.0*a_i*a_j*xi2+2.0*aj2*xi2)*exp(-aimaj2*xi2)) + 1.0/(8.0*PI*ai3*aj3)*((ai3-aj3)*erf(aimaj*xi) - (ai3+aj3)*erf(aipaj*xi)) + min(ai3,aj3)/(4*PI*ai3*aj3));
+			//h_fieldtable.data[pair_offset].x = Scalar(1.0/(16.0*pow(PI,1.5)*ai3*aj3*xi3)*((1.0-2.0*ai2*xi2+2.0*a_i*a_j*xi2-2.0*aj2*xi2)*exp(-aipaj2*xi2) + (-1.0+2.0*ai2*xi2+2.0*a_i*a_j*xi2+2.0*aj2*xi2)*exp(-aimaj2*xi2)) + 1.0/(8.0*PI*ai3*aj3)*((ai3-aj3)*erf(aimaj*xi) - (ai3+aj3)*erf(aipaj*xi)) + min(ai3,aj3)/(4*PI*ai3*aj3));
 
 			// // Field table: rr component
 			// exppolyp = 1.0/(512.0*pow(PI,1.5)*xi5*dist3)*(8.0*xi4*dist5 - 16.0*xi4*dist4 + 2.0*xi2*(7.0-20.0*xi2)*dist3 - 4.0*xi2*(3.0-4.0*xi2)*dist2 - (3.0-12.0*xi2+32.0*xi4)*dist - 2.0*(3.0+4.0*xi2-32.0*xi4));
@@ -577,14 +621,30 @@ void MutualDipole::SetParams() {
 			h_forcetable.data[table_idx].y = Scalar(field_1_rr*dexp_1 + force_1_rr*exp_1 + field_2_rr*dexp_2 + force_2_rr*exp_2 + field_3_rr*dexp_3 + force_3_rr*exp_3 + field_4_rr*dexp_4 + force_4_rr*exp_4 + field_5_rr*derf_5 + force_5_rr*erf_5 + field_6_rr*derf_6 + force_6_rr*erf_6 + field_7_rr*derf_7 + force_7_rr*erf_7 + field_8_rr*derf_8 + force_8_rr*erf_8 + regpoly);
 		}
 
-		for (unsigned int table_i = 0; table_i < m_Ntable; table_i++)
+		// For interpolation of normal pair distances, only indices 1 ... m_Ntable
+		// are used. Index 0 is the selfterm and should not be used for neighbor
+		// interpolation.
+		for (unsigned int table_i = 1; table_i < m_Ntable; table_i++)
 		{
 			const unsigned int table_idx = pair_offset + table_i;
 			const unsigned int table_idx_next = pair_offset + table_i + 1;
+
 			h_fieldtable.data[table_idx].z = h_fieldtable.data[table_idx_next].x;
 			h_fieldtable.data[table_idx].w = h_fieldtable.data[table_idx_next].y;
+
 			h_forcetable.data[table_idx].z = h_forcetable.data[table_idx_next].x;
 			h_forcetable.data[table_idx].w = h_forcetable.data[table_idx_next].y;
+		}
+
+		// Last table point has no next point. Set z/w equal to x/y safely.
+		{
+			const unsigned int last_idx = pair_offset + m_Ntable;
+
+			h_fieldtable.data[last_idx].z = h_fieldtable.data[last_idx].x;
+			h_fieldtable.data[last_idx].w = h_fieldtable.data[last_idx].y;
+
+			h_forcetable.data[last_idx].z = h_forcetable.data[last_idx].x;
+			h_forcetable.data[last_idx].w = h_forcetable.data[last_idx].y;
 		}
 	}
 }

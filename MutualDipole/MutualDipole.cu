@@ -489,8 +489,8 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 					unsigned int radii_types,
 					const unsigned int *d_nlist, // pointer to the neighbor list
 					const unsigned int *d_head_list, // pointer to head list used to access elements of the neighbor list
-					const unsigned int *d_n_neigh, // pointer to the number of neighbors of each particle 
-					Scalar selfcoeff) // coefficient of the self term
+					const unsigned int *d_n_neigh) // pointer to the number of neighbors of each particle 
+					//Scalar selfcoeff) // coefficient of the self term
 {
   	// Index for current particle
   	int group_idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -515,12 +515,23 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 		unsigned int radii_tag_i = d_radii_tag[group_tag];
 		Scalar ai = d_radii[radii_tag_i];
 		
+		// ---------------------------------------------------------------------
+		// Add real-space selfterm from table.
+		// MATLAB uses Ep_perp(1, lin) for selfterm.
+		// Here table index 0 stores r -> 0.
+		// For self interaction, the radii pair is (radii_tag_i, radii_tag_i).
+		// ---------------------------------------------------------------------
+		unsigned int self_pair_index = radii_tag_i * radii_types + radii_tag_i;
+		unsigned int self_table_index = self_pair_index * (Ntable + 1);
+
+		Scalar selfcoeff = __ldg(d_fieldtable + self_table_index).x;
+
 		// Add real space self term
 		E += selfcoeff*Si;
 
 		// If the particle conductivity is finite, add an additional self term
 		if ( isfinite(lambda_p) ) {
-			E += (3. / 4. * PI * ai * ai * ai * (lambda_p - 1.0)) * Si;
+			E += (3. / (4. * PI * ai * ai * ai * (lambda_p - 1.0))) * Si;
 		}
 
 		// Number of neighbors and location of neighbors in neighbor list for current particle
@@ -557,45 +568,59 @@ __global__ void real_space_field( 	Scalar4 *d_pos, // pointer to particle positi
 				//unsigned int type_j = __scalar_as_int(postypej.w);
 
 				// Distance vector between current particle and neighbor
-        			Scalar3 r = posi - posj;
-        			r = box.minImage(r); // nearest image distance vector
-        			Scalar dist2 = dot(r,r); // distance squared
+				Scalar3 r = posi - posj;
+				r = box.minImage(r); // nearest image distance vector
+				Scalar dist2 = dot(r,r); // distance squared
 
 				// Add neighbor contribution if it is within the real space cutoff radius
-       				if ( ( dist2 < rc2 ) && ( dist2 >= rmin2 ) ) {
+				if ( ( dist2 < rc2 ) && ( dist2 >= rmin2 ) ) {
 
-					Scalar dist = sqrtf(dist2); // distance
-					r = r/dist; // convert r to a unit vector
+				Scalar dist = sqrtf(dist2); // distance
+				r = r/dist; // convert r to a unit vector
 
-					// Dipole of neighbor particle
-					Scalar3 Sj = d_dipole[neigh_group_tag];
+				// Dipole of neighbor particle
+				Scalar3 Sj = d_dipole[neigh_group_tag];
 
-					// Dot product of neighbor dipole and r
-					Scalar Sjdotr = Sj.x*r.x + Sj.y*r.y + Sj.z*r.z;
+				// Dot product of neighbor dipole and r
+				Scalar Sjdotr = Sj.x*r.x + Sj.y*r.y + Sj.z*r.z;
 
-					// Read the table values closest to the current distance
-					int tableind = __scalar2int_rd( Ntable * (dist-drtable)/(rc-drtable) );	
+				// Read the table values closest to the current distance
+				// table index 0 is reserved for r -> 0 selfterm.
+				// Nonzero pair table starts at index 1:
+				// index 1 -> drtable
+				// index 2 -> 2*drtable
+				// ...
+				// index Ntable -> rc
+				int tableind = __scalar2int_rd(dist / drtable);
 
-					unsigned int pair_index = radii_tag_i * radii_types + radii_tag_j;
-					unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
+				// Clamp so that tableind + 1 is valid.
+				// Since the pair condition uses dist2 < rc2, dist should normally be < rc.
+				if (tableind < 1) {
+					tableind = 1;
+				}
+				if (tableind >= Ntable) {
+					tableind = Ntable - 1;
+				}
 
-					Scalar4 entry = __ldg(d_fieldtable + full_tableind);
+				unsigned int pair_index = radii_tag_i * radii_types + radii_tag_j;
+				unsigned int full_tableind = pair_index * (Ntable + 1) + tableind;
 
-					// Linearly interpolate between the table values
-					Scalar lininterp = dist/drtable - tableind - Scalar(1.0);
-					Scalar C1 = entry.x + ( entry.z - entry.x )*lininterp;
-					Scalar C2 = entry.y + ( entry.w - entry.y )*lininterp;  
+				Scalar4 entry = __ldg(d_fieldtable + full_tableind);
 
-					// Real-space contributions to the field
-					E += C1*(Sj - Sjdotr*r) + C2*Sjdotr*r;
-	
-      				} // end neighbor contribution
+				// Linearly interpolate between the table values
+				// Interpolate between tableind and tableind + 1.
+				Scalar lininterp = dist / drtable - Scalar(tableind);
+				Scalar C1 = entry.x + (entry.z - entry.x) * lininterp;
+				Scalar C2 = entry.y + (entry.w - entry.y) * lininterp;
+
+				// Real-space contributions to the field
+				E += C1*(Sj - Sjdotr*r) + C2*Sjdotr*r;
+				} // end neighbor contribution
 			} // end membership check
 		}// end neighbor loop
 
 		// Write the result to the current particle's field
 		d_extfield[group_tag] = E;
-
 	}
 }
 
@@ -778,7 +803,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 	Scalar xi3 = xi2*xi;
 	Scalar xiterm = 2.0*xi2;
 	Scalar prefac = xiterm*xi/PI*sqrtf(2.0/(PI*eta.x*eta.y*eta.z));  // prefactor for the spreading and contracting exponentials
-	Scalar selfterm = (-1.0+6.0*xi2)/(16.0*PI*sqrt(PI)*xi3) + (1.0 - 2.0*xi2)*exp(-4.0*xi2)/(16.0*PI*sqrt(PI)*xi3) + erfc(2.0*xi)/(4.0*PI); // self term in the potential matrix
+	//Scalar selfterm = (-1.0+6.0*xi2)/(16.0*PI*sqrt(PI)*xi3) + (1.0 - 2.0*xi2)*exp(-4.0*xi2)/(16.0*PI*sqrt(PI)*xi3) + erfc(2.0*xi)/(4.0*PI); // self term in the potential matrix
 
     // Reset the grid values to zero
     initialize_grid<<<Nblocks1, Nthreads1>>>(d_gridX,Ngrid);
@@ -805,7 +830,7 @@ cudaError_t ComputeField(Scalar4 *d_pos, // pointer to particle positions
 	contractfield<<<Nblocks2, Nthreads2, 3*(P*P*P+1)*sizeof(float)>>>(d_pos, d_dipole, d_extfield, group_size, d_group_members, d_tag, d_group_tag, box, xi, eta, Nx, Ny, Nz, gridh, P, d_gridX, d_gridY, d_gridZ, xiterm, quadW*prefac);
 
 	// Compute the real space contribution to the field
-    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_radii, d_radii_tag, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh, selfterm); 
+    real_space_field<<<Nblocks3, Nthreads3>>>(d_pos, d_radii, d_radii_tag, d_conductivity, d_dipole, d_extfield, group_size, d_group_membership_tag, d_group_members, d_tag, d_group_tag, box, rc, Ntable, drtable, d_fieldtable, radii_types, d_nlist, d_head_list, d_n_neigh); // remove selfterm
 
     gpuErrchk(cudaPeekAtLastError());
     return cudaSuccess;
