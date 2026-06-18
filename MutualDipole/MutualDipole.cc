@@ -366,7 +366,7 @@ void MutualDipole::SetParams() {
 		for (unsigned int table_i = 1; table_i <= m_Ntable; table_i++)
 		{
 			const unsigned int table_idx = pair_offset + table_i;
-			const unsigned int table_idx_next = pair_offset + table_i + 1;
+			//const unsigned int table_idx_next = pair_offset + table_i + 1;
 
 			double field_1_Irr = 0.0;
 			double field_2_Irr = 0.0;
@@ -567,6 +567,8 @@ void MutualDipole::SetParams() {
 			if (dist < a_i + a_j && dist >= a_i - a_j && dist >= a_j - a_i) {
 
 				regpoly = 1.0/(128.0*ai3*aj3*dist3*PI)*(3.0*(ai2-4*a_i*a_j+aj2)-6.0*aipaj*dist-3.0*dist2)*(aipaj-dist3) - 3.0*(ai3-3.0*ai2*a_j-3.0*a_i*aj2+aj3 + 3.0*(ai2-4.0*a_i*a_j+aj2)*dist - 3.0*aipaj*dist2 - dist3)/(128.0*ai3*aj3*dist*PI) - 3.0*(aipaj-dist3)*(ai3-3.0*ai2*a_j-3.0*a_i*aj2+aj3 + 3.0*(ai2-4.0*a_i*a_j+aj2)*dist - 3.0*aipaj*dist2 - dist3)/(128.0*ai3*aj3*dist4*PI);
+
+				regpoly = (pow(aipaj-dist,3) * (3.*(ai2-4.*a_i*aj3) - 6.*aipaj*dist - 3*dist2)) / (128.*ai3*aj3*dist3*PI) - (3.*pow(aipaj-dist,3) * (ai3-3.*ai2*a_j - 3.*a_i*aj2 + aj3 + 3*(ai2-4.*a_i*aj3)*dist - 3*aipaj*dist2 - dist3)) / (128.*ai3*aj3*dist4*PI) - (3.*pow(aipaj-dist,2) * (ai3 - 3.*ai2*a_j - 3.*a_i*aj2 + aj3 + 3.*(ai2-4.*a_i*aj3)*dist - 3.*aipaj*dist2 - dist3)) / (128.*ai3*aj3*dist3*PI);
 
 			}
 			else if (dist < a_j - a_i && dist > a_i - a_j) {
